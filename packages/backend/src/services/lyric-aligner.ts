@@ -73,7 +73,7 @@ async function submitTranscription(audioUrl: string): Promise<string> {
     throw new Error(`AssemblyAI submit failed (${res.status}): ${body}`);
   }
 
-  const data = await res.json();
+  const data: any = await res.json();
   return data.id;
 }
 
@@ -93,7 +93,7 @@ async function pollTranscription(transcriptId: string, maxWaitMs = 300000): Prom
       throw new Error(`AssemblyAI poll failed (${res.status})`);
     }
 
-    const data: AAITranscript = await res.json();
+    const data = await res.json() as AAITranscript;
 
     if (data.status === 'completed') return data;
 

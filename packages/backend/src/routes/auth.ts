@@ -26,7 +26,7 @@ const loginSchema = z.object({
 
 function signToken(payload: AuthPayload): string {
   const env = getEnv();
-  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN });
+  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN as any });
 }
 
 function setTokenCookie(res: Response, token: string): void {

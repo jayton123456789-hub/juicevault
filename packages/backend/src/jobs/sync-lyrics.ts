@@ -134,7 +134,7 @@ async function preflight(): Promise<boolean> {
         console.log('  ✅ AssemblyAI key is valid');
         // Cancel the test transcript we just created
         try {
-          const data = await res.json();
+          const data: any = await res.json();
           if (data.id) {
             await fetch(`https://api.assemblyai.com/v2/transcript/${data.id}`, {
               method: 'DELETE',

@@ -86,7 +86,7 @@ async function main() {
     const base = process.env.JUICEWRLD_API_BASE || 'https://juicewrldapi.com/juicewrld';
     try {
       const resp = await fetch(`${base}/songs/${testSong.externalId}/`);
-      const data = await resp.json();
+      const data: any = await resp.json();
       console.log(`  API song ${testSong.externalId}:`);
       console.log(`    name:       ${data.name}`);
       console.log(`    path:       ${data.path ? data.path.substring(0, 80) : 'NONE'}`);

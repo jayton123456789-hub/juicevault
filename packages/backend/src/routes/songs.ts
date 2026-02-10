@@ -76,7 +76,11 @@ router.get('/by-external/:externalId', requireAuth, async (req: Request, res: Re
         era: true,
         aliases: true,
         lyricsVersions: {
-          where: { isCanonical: true },
+          where: { OR: [{ isCanonical: true }, { status: 'approved' }] },
+          orderBy: [
+            { isCanonical: 'desc' },
+            { versionNumber: 'desc' },
+          ],
           take: 1,
         },
       },
@@ -178,7 +182,11 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
           era: { select: { id: true, name: true, timeFrame: true } },
           aliases: { select: { alias: true, isPrimary: true } },
           lyricsVersions: {
-            where: { isCanonical: true },
+            where: { OR: [{ isCanonical: true }, { status: 'approved' }] },
+            orderBy: [
+              { isCanonical: 'desc' },
+              { versionNumber: 'desc' },
+            ],
             select: { id: true, versionNumber: true },
             take: 1,
           },
@@ -238,7 +246,11 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
         era: true,
         aliases: true,
         lyricsVersions: {
-          where: { isCanonical: true },
+          where: { OR: [{ isCanonical: true }, { status: 'approved' }] },
+          orderBy: [
+            { isCanonical: 'desc' },
+            { versionNumber: 'desc' },
+          ],
           take: 1,
         },
       },

@@ -25,9 +25,18 @@ router.get('/:songId/lyrics', requireAuth, async (req: Request, res: Response) =
     const canonical = await prisma.lyricsVersion.findFirst({
       where: { songId: req.params.songId, isCanonical: true },
       include: { author: { select: { id: true, displayName: true } } },
+      orderBy: { versionNumber: 'desc' },
     });
 
-    if (!canonical) {
+    const fallbackApproved = canonical ? null : await prisma.lyricsVersion.findFirst({
+      where: { songId: req.params.songId, status: 'approved' },
+      include: { author: { select: { id: true, displayName: true } } },
+      orderBy: { versionNumber: 'desc' },
+    });
+
+    const effectiveLyrics = canonical ?? fallbackApproved;
+
+    if (!effectiveLyrics) {
       // Fall back: return raw lyrics from API if available
       const song = await prisma.song.findUnique({
         where: { id: req.params.songId },
@@ -76,14 +85,14 @@ router.get('/:songId/lyrics', requireAuth, async (req: Request, res: Response) =
 
     res.json({
       canonical: {
-        id: canonical.id,
-        versionNumber: canonical.versionNumber,
-        lyricsData: canonical.lyricsData,
-        source: canonical.source,
-        author: canonical.author,
-        createdAt: canonical.createdAt,
+        id: effectiveLyrics.id,
+        versionNumber: effectiveLyrics.versionNumber,
+        lyricsData: effectiveLyrics.lyricsData,
+        source: effectiveLyrics.source,
+        author: effectiveLyrics.author,
+        createdAt: effectiveLyrics.createdAt,
       },
-      rawLyrics: null, // Not needed when canonical exists
+      rawLyrics: null, // Not needed when timed lyrics exist
     });
   } catch (err) {
     console.error('Get lyrics error:', err);

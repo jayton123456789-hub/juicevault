@@ -3774,7 +3774,7 @@ let lyricsLogPoller = null;
 
 async function triggerAutoLyricsSync(mode) {
   try {
-    const data = await api('/admin/lyrics/auto-sync', {
+    await api('/admin/lyrics/auto-sync', {
       method: 'POST',
       body: JSON.stringify({ mode }),
     });

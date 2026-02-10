@@ -327,7 +327,7 @@ router.get('/analytics', async (_req: Request, res: Response) => {
       prisma.song.count(),
       prisma.song.count({ where: { isAvailable: true, filePath: { not: null } } }),
       prisma.song.count({ where: { isAvailable: false } }),
-      prisma.lyricsVersion.groupBy({ by: ['songId'], where: { isCanonical: true } }).then((r) => r.length),
+      prisma.lyricsVersion.groupBy({ by: ['songId'], where: { OR: [{ isCanonical: true }, { status: 'approved' }] } }).then((r) => r.length),
       prisma.song.count({ where: { rawLyrics: { not: '' } } }),
       prisma.lyricsVersion.count(),
       prisma.lyricsVersion.count({ where: { status: 'pending_review' } }),

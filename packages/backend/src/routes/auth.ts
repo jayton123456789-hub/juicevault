@@ -5,6 +5,7 @@ import { z } from 'zod';
 import prisma from '../config/database';
 import { getEnv } from '../config/env';
 import { requireAuth, AuthPayload } from '../middleware/auth';
+import { triggerAutoLyricsSync } from '../jobs/auto-lyrics-sync';
 
 const router = Router();
 
@@ -144,6 +145,11 @@ router.post('/login', async (req: Request, res: Response) => {
     };
     const token = signToken(payload);
     setTokenCookie(res, token);
+
+    // Trigger background auto-sync on login (non-blocking)
+    setTimeout(() => {
+      triggerAutoLyricsSync(`Login by ${user.email}`, 'full');
+    }, 100);
 
     res.json({
       user: {

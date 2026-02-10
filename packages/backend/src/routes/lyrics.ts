@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { v4 as uuid } from 'uuid';
 import prisma from '../config/database';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { fetchGeniusLyrics } from '../services/genius-api';
 
 const router = Router();
 
@@ -18,45 +19,83 @@ interface TimedLine {
 
 // ─── GET /api/songs/:songId/lyrics ──────────────────────
 // Returns the canonical (approved) timed lyrics version, or null.
+// Falls back to Genius API on-demand if no raw lyrics exist.
 
 router.get('/:songId/lyrics', requireAuth, async (req: Request, res: Response) => {
   try {
-    const canonical = await prisma.lyricsVersion.findFirst({
+    // Prefer canonical, then approved version
+    let timedVersion = await prisma.lyricsVersion.findFirst({
       where: { songId: req.params.songId, isCanonical: true },
       include: { author: { select: { id: true, displayName: true } } },
     });
 
-    if (!canonical) {
-      // Fall back: return raw lyrics from API if available
-      const song = await prisma.song.findUnique({
-        where: { id: req.params.songId },
-        select: { rawLyrics: true },
+    // If no canonical, check for approved versions
+    if (!timedVersion) {
+      timedVersion = await prisma.lyricsVersion.findFirst({
+        where: { songId: req.params.songId, status: 'approved' },
+        include: { author: { select: { id: true, displayName: true } } },
+        orderBy: { versionNumber: 'desc' },
       });
+    }
 
-      if (song?.rawLyrics) {
-        res.json({
-          canonical: null,
-          rawLyrics: song.rawLyrics,
-          message: 'No timed lyrics yet. Raw lyrics from the database are available.',
-        });
-        return;
-      }
-
-      res.json({ canonical: null, rawLyrics: null });
+    if (timedVersion) {
+      res.json({
+        canonical: {
+          id: timedVersion.id,
+          versionNumber: timedVersion.versionNumber,
+          lyricsData: timedVersion.lyricsData,
+          source: timedVersion.source,
+          author: timedVersion.author,
+          createdAt: timedVersion.createdAt,
+        },
+        rawLyrics: null,
+      });
       return;
     }
 
-    res.json({
-      canonical: {
-        id: canonical.id,
-        versionNumber: canonical.versionNumber,
-        lyricsData: canonical.lyricsData,
-        source: canonical.source,
-        author: canonical.author,
-        createdAt: canonical.createdAt,
-      },
-      rawLyrics: null, // Not needed when canonical exists
+    // No timed version - check for raw lyrics
+    const song = await prisma.song.findUnique({
+      where: { id: req.params.songId },
+      select: { id: true, name: true, rawLyrics: true },
     });
+
+    if (!song) {
+      res.status(404).json({ error: 'Song not found' });
+      return;
+    }
+
+    // Try on-demand Genius fetch if no raw lyrics
+    if (!song.rawLyrics && process.env.GENIUS_ACCESS_TOKEN) {
+      console.log(`[LYRICS] On-demand Genius fetch for "${song.name}"`);
+      const result = await fetchGeniusLyrics(song.name);
+      if (result) {
+        await prisma.song.update({
+          where: { id: song.id },
+          data: {
+            rawLyrics: result.lyrics,
+            additionalInfo: `Lyrics source: Genius (${result.geniusUrl})`,
+          },
+        });
+        res.json({
+          canonical: null,
+          rawLyrics: result.lyrics,
+          message: 'Lyrics fetched from Genius. Timing sync pending.',
+          fetchedFrom: 'genius',
+        });
+        return;
+      }
+    }
+
+    if (song.rawLyrics) {
+      res.json({
+        canonical: null,
+        rawLyrics: song.rawLyrics,
+        message: 'No timed lyrics yet. Raw lyrics from the database are available.',
+      });
+      return;
+    }
+
+    res.json({ canonical: null, rawLyrics: null, message: 'No lyrics available' });
   } catch (err) {
     console.error('Get lyrics error:', err);
     res.status(500).json({ error: 'Internal server error' });

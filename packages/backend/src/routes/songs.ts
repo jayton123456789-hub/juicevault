@@ -160,9 +160,12 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       where.OR = searchFields;
     }
 
-    // Filter for songs with lyrics
+    // Filter for songs with lyrics (raw or timed)
     if (params.hasLyrics) {
-      where.rawLyrics = { not: '' };
+      where.OR = [
+        { rawLyrics: { not: '' } },
+        { lyricsVersions: { some: { OR: [{ isCanonical: true }, { status: 'approved' }] } } },
+      ];
     }
 
     // Dynamic sort
@@ -205,7 +208,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
         isAvailable: s.isAvailable,
         hasFilePath: !!s.filePath,
         playCount: s.playCount,
-        hasLyrics: s.lyricsVersions.length > 0,
+        hasLyrics: s.lyricsVersions.length > 0 || s.rawLyrics.length > 0,
         hasRawLyrics: s.rawLyrics.length > 0,
         imageUrl: s.imageUrl,
         leakType: s.leakType,
@@ -238,7 +241,8 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
         era: true,
         aliases: true,
         lyricsVersions: {
-          where: { isCanonical: true },
+          where: { OR: [{ isCanonical: true }, { status: 'approved' }] },
+          orderBy: [{ isCanonical: 'desc' }, { versionNumber: 'desc' }],
           take: 1,
         },
       },
@@ -276,6 +280,7 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
       playCount: song.playCount,
       rawLyrics: song.rawLyrics,
       canonicalLyrics: song.lyricsVersions[0] || null,
+      hasLyrics: song.lyricsVersions.length > 0 || song.rawLyrics.length > 0,
     });
   } catch (err) {
     console.error('Get song error:', err);
@@ -347,13 +352,20 @@ router.get(
       let audioResponse: any;
       try {
         audioResponse = await api.fetchAudioStream(song.filePath, rangeHeader);
-      } catch (err) {
+      } catch (err: any) {
         console.error(`Audio proxy failed for ${song.id} (path: ${song.filePath}):`, err);
-        await prisma.song.update({
-          where: { id: song.id },
-          data: { isAvailable: false, lastHealthCheck: new Date() },
-        }).catch(() => {});
-        res.status(502).json({ error: 'Audio source is currently unavailable' });
+        // Only mark unavailable on permanent errors (404/410), not transient errors
+        const isPermanentError = err?.status === 404 || err?.status === 410;
+        if (isPermanentError) {
+          await prisma.song.update({
+            where: { id: song.id },
+            data: { isAvailable: false, lastHealthCheck: new Date() },
+          }).catch(() => {});
+        }
+        res.status(502).json({ 
+          error: 'Audio source is currently unavailable',
+          permanent: isPermanentError 
+        });
         return;
       }
 

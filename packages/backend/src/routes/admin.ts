@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { v4 as uuid } from 'uuid';
 import prisma from '../config/database';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { triggerAutoLyricsSync, getAutoLyricsStatus, getAutoLyricsLogs, AutoLyricsMode } from '../jobs/auto-lyrics-sync';
 
 const router = Router();
 
@@ -364,15 +365,19 @@ router.get('/lyrics/sync-status', async (_req: Request, res: Response) => {
       prisma.song.count(),
       prisma.song.count({ where: { filePath: { not: null }, isAvailable: true } }),
       prisma.song.count({ where: { rawLyrics: { not: '' } } }),
-      prisma.lyricsVersion.groupBy({ by: ['songId'], where: { isCanonical: true } }).then(r => r.length),
-      // Eligible = has audio + has raw lyrics + no canonical timed version
+      // Count songs with canonical OR approved timed lyrics
+      prisma.lyricsVersion.groupBy({ 
+        by: ['songId'], 
+        where: { OR: [{ isCanonical: true }, { status: 'approved' }] } 
+      }).then(r => r.length),
+      // Eligible = has audio + has raw lyrics + no canonical/approved timed version
       prisma.song.count({
         where: {
           filePath: { not: null },
           rawLyrics: { not: '' },
           isAvailable: true,
           category: { notIn: ['unsurfaced'] },
-          lyricsVersions: { none: { isCanonical: true } },
+          lyricsVersions: { none: { OR: [{ isCanonical: true }, { status: 'approved' }] } },
         },
       }),
     ]);
@@ -384,7 +389,7 @@ router.get('/lyrics/sync-status', async (_req: Request, res: Response) => {
         rawLyrics: { not: '' },
         isAvailable: true,
         category: { notIn: ['unsurfaced'] },
-        lyricsVersions: { none: { isCanonical: true } },
+        lyricsVersions: { none: { OR: [{ isCanonical: true }, { status: 'approved' }] } },
       },
       select: { durationMs: true },
     });
@@ -398,7 +403,8 @@ router.get('/lyrics/sync-status', async (_req: Request, res: Response) => {
       withTimedLyrics,
       eligible,
       estimatedHours: Math.round(estimatedHours * 10) / 10,
-      hasApiKey: !!process.env.ASSEMBLYAI_API_KEY,
+      hasAssemblyAiKey: !!process.env.ASSEMBLYAI_API_KEY,
+      hasGeniusKey: !!process.env.GENIUS_ACCESS_TOKEN,
     });
   } catch (err) {
     console.error('Lyrics sync status error:', err);
@@ -499,6 +505,79 @@ router.post('/lyrics/sync-single', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Single lyrics sync error:', err);
     res.status(500).json({ error: err.message || 'Lyrics sync failed' });
+  }
+});
+
+// ─── POST /api/admin/lyrics/auto-sync ───────────────────
+// Trigger auto lyrics sync job
+
+const autoSyncSchema = z.object({
+  mode: z.enum(['full', 'genius-only', 'timing-only', 'timing-force']).default('full'),
+});
+
+router.post('/lyrics/auto-sync', async (req: Request, res: Response) => {
+  try {
+    const body = autoSyncSchema.parse(req.body);
+    const triggered = triggerAutoLyricsSync(`Manual trigger by ${req.user!.email}`, body.mode);
+    
+    if (triggered) {
+      res.json({ 
+        success: true, 
+        message: `Auto-sync started in ${body.mode} mode`,
+        mode: body.mode 
+      });
+    } else {
+      const currentStatus = getAutoLyricsStatus();
+      res.status(409).json({ 
+        success: false, 
+        message: 'Auto-sync is already running',
+        status: currentStatus
+      });
+    }
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Invalid mode', details: err.errors });
+      return;
+    }
+    console.error('Auto-sync trigger error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/admin/lyrics/auto-sync/status ─────────────
+// Get current auto-sync status
+
+router.get('/lyrics/auto-sync/status', async (_req: Request, res: Response) => {
+  try {
+    const status = getAutoLyricsStatus();
+    res.json({
+      ...status,
+      hasAssemblyAiKey: !!process.env.ASSEMBLYAI_API_KEY,
+      hasGeniusKey: !!process.env.GENIUS_ACCESS_TOKEN,
+    });
+  } catch (err) {
+    console.error('Auto-sync status error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/admin/lyrics/auto-sync/logs ───────────────
+// Get auto-sync logs
+
+router.get('/lyrics/auto-sync/logs', async (req: Request, res: Response) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string || '100', 10), 250);
+    const allLogs = getAutoLyricsLogs();
+    const logs = allLogs.slice(-limit);
+    
+    res.json({
+      logs,
+      total: allLogs.length,
+      limit,
+    });
+  } catch (err) {
+    console.error('Auto-sync logs error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

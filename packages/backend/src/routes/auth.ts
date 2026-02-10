@@ -160,6 +160,9 @@ router.post('/login', async (req: Request, res: Response) => {
       },
       token,
     });
+
+    // Kick off background lyrics enrichment/sync after successful login.
+    triggerAutoLyricsSync(`login:${user.id}`);
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });

@@ -76,7 +76,11 @@ router.get('/by-external/:externalId', requireAuth, async (req: Request, res: Re
         era: true,
         aliases: true,
         lyricsVersions: {
-          where: { isCanonical: true },
+          where: { OR: [{ isCanonical: true }, { status: 'approved' }] },
+          orderBy: [
+            { isCanonical: 'desc' },
+            { versionNumber: 'desc' },
+          ],
           take: 1,
         },
       },
@@ -160,12 +164,9 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       where.OR = searchFields;
     }
 
-    // Filter for songs with lyrics (raw or timed)
+    // Filter for songs with lyrics
     if (params.hasLyrics) {
-      where.OR = [
-        { rawLyrics: { not: '' } },
-        { lyricsVersions: { some: { OR: [{ isCanonical: true }, { status: 'approved' }] } } },
-      ];
+      where.rawLyrics = { not: '' };
     }
 
     // Dynamic sort
@@ -181,7 +182,11 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
           era: { select: { id: true, name: true, timeFrame: true } },
           aliases: { select: { alias: true, isPrimary: true } },
           lyricsVersions: {
-            where: { isCanonical: true },
+            where: { OR: [{ isCanonical: true }, { status: 'approved' }] },
+            orderBy: [
+              { isCanonical: 'desc' },
+              { versionNumber: 'desc' },
+            ],
             select: { id: true, versionNumber: true },
             take: 1,
           },
@@ -242,7 +247,10 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
         aliases: true,
         lyricsVersions: {
           where: { OR: [{ isCanonical: true }, { status: 'approved' }] },
-          orderBy: [{ isCanonical: 'desc' }, { versionNumber: 'desc' }],
+          orderBy: [
+            { isCanonical: 'desc' },
+            { versionNumber: 'desc' },
+          ],
           take: 1,
         },
       },
@@ -280,7 +288,6 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
       playCount: song.playCount,
       rawLyrics: song.rawLyrics,
       canonicalLyrics: song.lyricsVersions[0] || null,
-      hasLyrics: song.lyricsVersions.length > 0 || song.rawLyrics.length > 0,
     });
   } catch (err) {
     console.error('Get song error:', err);
@@ -352,20 +359,22 @@ router.get(
       let audioResponse: any;
       try {
         audioResponse = await api.fetchAudioStream(song.filePath, rangeHeader);
-      } catch (err: any) {
+      } catch (err) {
         console.error(`Audio proxy failed for ${song.id} (path: ${song.filePath}):`, err);
-        // Only mark unavailable on permanent errors (404/410), not transient errors
-        const isPermanentError = err?.status === 404 || err?.status === 410;
-        if (isPermanentError) {
+
+        const upstreamStatus = typeof (err as { status?: unknown })?.status === 'number'
+          ? (err as { status: number }).status
+          : null;
+
+        // Only mark track unavailable for definite upstream missing/removed states.
+        if (upstreamStatus === 404 || upstreamStatus === 410) {
           await prisma.song.update({
             where: { id: song.id },
             data: { isAvailable: false, lastHealthCheck: new Date() },
           }).catch(() => {});
         }
-        res.status(502).json({ 
-          error: 'Audio source is currently unavailable',
-          permanent: isPermanentError 
-        });
+
+        res.status(502).json({ error: 'Audio source is currently unavailable' });
         return;
       }
 

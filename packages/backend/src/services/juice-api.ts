@@ -293,7 +293,7 @@ export class JuiceWrldApiService {
 
     // 200 = full file, 206 = partial content — both are valid
     if (!response.ok && response.status !== 206) {
-      const error: any = new Error(`Audio stream failed: ${response.status} ${response.statusText}`);
+      const error = new Error(`Audio stream failed: ${response.status} ${response.statusText}`) as Error & { status?: number };
       error.status = response.status;
       throw error;
     }

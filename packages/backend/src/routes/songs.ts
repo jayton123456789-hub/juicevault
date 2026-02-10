@@ -76,7 +76,11 @@ router.get('/by-external/:externalId', requireAuth, async (req: Request, res: Re
         era: true,
         aliases: true,
         lyricsVersions: {
-          where: { isCanonical: true },
+          where: { OR: [{ isCanonical: true }, { status: 'approved' }] },
+          orderBy: [
+            { isCanonical: 'desc' },
+            { versionNumber: 'desc' },
+          ],
           take: 1,
         },
       },
@@ -178,7 +182,11 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
           era: { select: { id: true, name: true, timeFrame: true } },
           aliases: { select: { alias: true, isPrimary: true } },
           lyricsVersions: {
-            where: { isCanonical: true },
+            where: { OR: [{ isCanonical: true }, { status: 'approved' }] },
+            orderBy: [
+              { isCanonical: 'desc' },
+              { versionNumber: 'desc' },
+            ],
             select: { id: true, versionNumber: true },
             take: 1,
           },
@@ -205,7 +213,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
         isAvailable: s.isAvailable,
         hasFilePath: !!s.filePath,
         playCount: s.playCount,
-        hasLyrics: s.lyricsVersions.length > 0,
+        hasLyrics: s.lyricsVersions.length > 0 || s.rawLyrics.length > 0,
         hasRawLyrics: s.rawLyrics.length > 0,
         imageUrl: s.imageUrl,
         leakType: s.leakType,
@@ -238,7 +246,11 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
         era: true,
         aliases: true,
         lyricsVersions: {
-          where: { isCanonical: true },
+          where: { OR: [{ isCanonical: true }, { status: 'approved' }] },
+          orderBy: [
+            { isCanonical: 'desc' },
+            { versionNumber: 'desc' },
+          ],
           take: 1,
         },
       },
@@ -349,10 +361,19 @@ router.get(
         audioResponse = await api.fetchAudioStream(song.filePath, rangeHeader);
       } catch (err) {
         console.error(`Audio proxy failed for ${song.id} (path: ${song.filePath}):`, err);
-        await prisma.song.update({
-          where: { id: song.id },
-          data: { isAvailable: false, lastHealthCheck: new Date() },
-        }).catch(() => {});
+
+        const upstreamStatus = typeof (err as { status?: unknown })?.status === 'number'
+          ? (err as { status: number }).status
+          : null;
+
+        // Only mark track unavailable for definite upstream missing/removed states.
+        if (upstreamStatus === 404 || upstreamStatus === 410) {
+          await prisma.song.update({
+            where: { id: song.id },
+            data: { isAvailable: false, lastHealthCheck: new Date() },
+          }).catch(() => {});
+        }
+
         res.status(502).json({ error: 'Audio source is currently unavailable' });
         return;
       }

@@ -74,7 +74,8 @@ async function syncCatalog() {
       signal: AbortSignal.timeout(15000),
     });
     if (eraRes.ok) {
-      const eras: any[] = await eraRes.json();
+      const eraData: unknown = await eraRes.json();
+      const eras: any[] = Array.isArray(eraData) ? eraData : [];
       for (const era of eras) {
         await prisma.era.upsert({
           where: { externalId: era.id },

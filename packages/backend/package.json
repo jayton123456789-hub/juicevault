@@ -13,7 +13,9 @@
     "sync:catalog": "tsx src/jobs/sync-catalog.ts",
     "sync:lyrics": "tsx src/jobs/sync-lyrics.ts",
     "sync:lyrics:dry": "tsx src/jobs/sync-lyrics.ts --dry-run",
-    "sync:lyrics:test": "tsx src/jobs/sync-lyrics.ts --test"
+    "sync:lyrics:test": "tsx src/jobs/sync-lyrics.ts --test",
+    "db:deploy": "prisma migrate deploy",
+    "prisma:generate": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.9.1",

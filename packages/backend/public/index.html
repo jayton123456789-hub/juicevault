@@ -3235,6 +3235,13 @@ async function loadFsLyrics(song) {
   document.getElementById('fsSongName').textContent = song.name;
   document.getElementById('fsSongArtist').textContent = song.creditedArtists || 'Juice WRLD';
 
+  const canRegen = user?.role === 'admin' || user?.role === 'trusted_contributor';
+  const regenBtn = document.getElementById('fsRegenBtn');
+  if (regenBtn) {
+    regenBtn.style.display = canRegen ? '' : 'none';
+    regenBtn.title = canRegen ? 'Regenerate timing' : 'Admin or trusted contributor only';
+  }
+
   // Try to load timed lyrics from canonical version
   let timed = null;
   if (song.canonicalLyrics && song.canonicalLyrics.id) {
@@ -3363,6 +3370,10 @@ function updateLyricsOffset(val) {
 
 async function regenLyricsTiming() {
   if (!currentSong) return;
+  if (user?.role !== 'admin' && user?.role !== 'trusted_contributor') {
+    toast('Regenerate timing is only available to admins and trusted contributors.', 'error');
+    return;
+  }
   const btn = document.getElementById('fsRegenBtn');
   const origHTML = btn.innerHTML;
   btn.style.opacity = '0.4';
@@ -3675,12 +3686,25 @@ async function loadAdmin() {
 
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <span style="font-size:0.75rem;padding:4px 10px;border-radius:var(--radius-full);background:${syncStatus.hasApiKey ? 'rgba(46,213,115,0.15)' : 'rgba(255,71,87,0.15)'};color:${syncStatus.hasApiKey ? 'var(--green)' : 'var(--red)'}">
-              ${syncStatus.hasApiKey ? '✅ API Key Set' : '❌ No API Key'}
+              ${syncStatus.hasApiKey ? '✅ AssemblyAI Key Set' : '❌ AssemblyAI Key Missing'}
+            </span>
+            <span style="font-size:0.75rem;padding:4px 10px;border-radius:var(--radius-full);background:${syncStatus.hasGeniusKey ? 'rgba(46,213,115,0.15)' : 'rgba(255,71,87,0.15)'};color:${syncStatus.hasGeniusKey ? 'var(--green)' : 'var(--red)'}">
+              ${syncStatus.hasGeniusKey ? '✅ Genius Key Set' : '❌ Genius Key Missing'}
             </span>
             <span style="font-size:0.75rem;padding:4px 10px;border-radius:var(--radius-full);background:rgba(155,93,229,0.15);color:var(--purple-300)">
               Free Tier: 185 hours
             </span>
           </div>
+
+          <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="admin-btn" onclick="triggerAutoLyricsSync('genius-only')">Scan Genius Songs</button>
+            <button class="admin-btn" onclick="triggerAutoLyricsSync('timing-only')">Sync Missing Timed Lyrics</button>
+            <button class="admin-btn" onclick="triggerAutoLyricsSync('timing-force')">Re-sync Auto Timings</button>
+            <button class="admin-btn" onclick="toggleLyricsSyncLogs()">Toggle Sync Logs</button>
+          </div>
+
+          <div id="lyricsAutoSyncStatus" style="margin-top:12px;padding:10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-md);font-size:0.78rem;color:var(--text-secondary);">Loading auto-sync status...</div>
+          <pre id="lyricsSyncLogs" class="hidden" style="margin-top:10px;max-height:220px;overflow:auto;background:#09090f;border:1px solid var(--border);border-radius:var(--radius-md);padding:10px;font-family:var(--font-mono);font-size:0.74rem;color:var(--text-secondary);white-space:pre-wrap;"></pre>
 
           <div style="margin-top:16px;padding:12px;background:var(--glass);border-radius:var(--radius-md);border:1px solid var(--border);">
             <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;">
@@ -3694,6 +3718,7 @@ async function loadAdmin() {
     } catch {}
 
     document.getElementById('adminSections').innerHTML = sectionsHtml;
+    refreshLyricsSyncPanel();
   } catch (err) {
     document.getElementById('adminStats').innerHTML = `<div class="empty-state"><p>Failed to load admin data: ${esc(err.message)}</p></div>`;
   }
@@ -3740,6 +3765,60 @@ async function syncSingleLyrics(songId) {
       btn.disabled = false;
       btn.innerHTML = '⚡ Retry Sync';
     }
+  }
+}
+
+
+
+let lyricsLogPoller = null;
+
+async function triggerAutoLyricsSync(mode) {
+  try {
+    const data = await api('/admin/lyrics/auto-sync', {
+      method: 'POST',
+      body: JSON.stringify({ mode }),
+    });
+    toast(`Started lyrics job (${mode})`, 'success');
+    refreshLyricsSyncPanel();
+  } catch (err) {
+    toast(`Auto-sync failed: ${err.message}`, 'error');
+  }
+}
+
+function toggleLyricsSyncLogs() {
+  const logsEl = document.getElementById('lyricsSyncLogs');
+  if (!logsEl) return;
+  logsEl.classList.toggle('hidden');
+  refreshLyricsSyncPanel();
+}
+
+async function refreshLyricsSyncPanel() {
+  const statusEl = document.getElementById('lyricsAutoSyncStatus');
+  if (!statusEl) return;
+  try {
+    const [{ status }, { logs }] = await Promise.all([
+      api('/admin/lyrics/auto-sync/status'),
+      api('/admin/lyrics/auto-sync/logs'),
+    ]);
+
+    statusEl.innerHTML = `
+      <div><strong>Mode:</strong> ${status.mode || 'idle'} | <strong>Stage:</strong> ${status.stage}</div>
+      <div style="margin-top:4px;"><strong>Running:</strong> ${status.running ? 'Yes' : 'No'} | <strong>Triggered by:</strong> ${status.lastTrigger || 'n/a'}</div>
+      <div style="margin-top:4px;"><strong>Genius:</strong> ${status.stats.geniusFilled}/${status.stats.geniusCandidates} | <strong>Timed:</strong> ${status.stats.timingSynced}/${status.stats.timingCandidates} (${status.stats.timingRetimed} re-sync)</div>
+      <div style="margin-top:4px;"><strong>Errors:</strong> ${status.stats.errors} | <strong>Started:</strong> ${status.startedAt || 'n/a'} | <strong>Finished:</strong> ${status.finishedAt || 'n/a'}</div>
+    `;
+
+    const logsEl = document.getElementById('lyricsSyncLogs');
+    if (logsEl && !logsEl.classList.contains('hidden')) {
+      logsEl.textContent = (logs || []).slice(-120).join('\n') || 'No logs yet';
+    }
+
+    if (lyricsLogPoller) clearTimeout(lyricsLogPoller);
+    if (status.running) {
+      lyricsLogPoller = setTimeout(refreshLyricsSyncPanel, 4000);
+    }
+  } catch (err) {
+    statusEl.textContent = `Failed to load auto-sync status: ${err.message}`;
   }
 }
 

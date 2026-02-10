@@ -86,6 +86,30 @@ Open your browser to `http://localhost:4000/api/health` — you should see:
 
 ---
 
+
+## Push Local Folder to GitHub (Windows Quick Commands)
+
+If your updated files are on your PC in `C:\Users\jayto\Desktop\juicevault`, run these in **PowerShell**:
+
+```powershell
+cd C:\Users\jayto\Desktop\juicevault
+git status
+git add -A
+git commit -m "Update JuiceVault"
+git push origin main
+```
+
+If this is your first push from that machine and `origin` is missing:
+
+```powershell
+cd C:\Users\jayto\Desktop\juicevault
+git remote add origin https://github.com/jayton123456789-hub/juicevault.git
+git branch -M main
+git push -u origin main
+```
+
+If PowerShell says **"not a git repository"**, you are in the wrong folder. `cd` into the folder that contains the hidden `.git` directory, then rerun the commands.
+
 ## Project Structure
 
 ```

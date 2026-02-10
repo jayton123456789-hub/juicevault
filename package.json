@@ -14,10 +14,14 @@
     "db:seed": "npm run db:seed --workspace=packages/backend",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "sync:catalog": "npm run sync:catalog --workspace=packages/backend"
+    "sync:catalog": "npm run sync:catalog --workspace=packages/backend",
+    "render:build": "npm install --include=dev && npm run db:deploy --workspace=packages/backend && npm run build --workspace=packages/backend"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
     "typescript": "^5.3.3"
+  },
+  "prisma": {
+    "schema": "packages/backend/prisma/schema.prisma"
   }
 }

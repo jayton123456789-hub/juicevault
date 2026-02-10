@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { v4 as uuid } from 'uuid';
 import prisma from '../config/database';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { getAutoLyricsLogs, getAutoLyricsStatus, triggerAutoLyricsSync } from '../jobs/auto-lyrics-sync';
 
 const router = Router();
 
@@ -222,6 +223,60 @@ router.get('/invites', async (_req: Request, res: Response) => {
   }
 });
 
+
+
+// ─── POST /api/admin/lyrics/auto-sync ───────────────────
+
+const autoSyncSchema = z.object({
+  mode: z.enum(['full', 'genius-only', 'timing-only', 'timing-force']).default('full'),
+});
+
+router.post('/lyrics/auto-sync', async (req: Request, res: Response) => {
+  try {
+    const body = autoSyncSchema.parse(req.body || {});
+    const started = triggerAutoLyricsSync(`admin:${req.user!.email}`, body.mode);
+    if (!started) {
+      res.status(409).json({ error: 'Auto-sync job is already running', status: getAutoLyricsStatus() });
+      return;
+    }
+
+    res.status(202).json({
+      started: true,
+      mode: body.mode,
+      status: getAutoLyricsStatus(),
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Invalid parameters', details: err.errors });
+      return;
+    }
+    console.error('Auto lyrics trigger error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/admin/lyrics/auto-sync/status ─────────────
+
+router.get('/lyrics/auto-sync/status', async (_req: Request, res: Response) => {
+  try {
+    res.json({ status: getAutoLyricsStatus() });
+  } catch (err) {
+    console.error('Auto lyrics status error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/admin/lyrics/auto-sync/logs ───────────────
+
+router.get('/lyrics/auto-sync/logs', async (_req: Request, res: Response) => {
+  try {
+    res.json({ logs: getAutoLyricsLogs() });
+  } catch (err) {
+    console.error('Auto lyrics logs error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ─── GET /api/admin/lyrics/pending ──────────────────────
 
 router.get('/lyrics/pending', async (_req: Request, res: Response) => {
@@ -364,7 +419,7 @@ router.get('/lyrics/sync-status', async (_req: Request, res: Response) => {
       prisma.song.count(),
       prisma.song.count({ where: { filePath: { not: null }, isAvailable: true } }),
       prisma.song.count({ where: { rawLyrics: { not: '' } } }),
-      prisma.lyricsVersion.groupBy({ by: ['songId'], where: { isCanonical: true } }).then(r => r.length),
+      prisma.lyricsVersion.groupBy({ by: ['songId'], where: { OR: [{ isCanonical: true }, { status: 'approved' }] } }).then(r => r.length),
       // Eligible = has audio + has raw lyrics + no canonical timed version
       prisma.song.count({
         where: {
@@ -372,7 +427,7 @@ router.get('/lyrics/sync-status', async (_req: Request, res: Response) => {
           rawLyrics: { not: '' },
           isAvailable: true,
           category: { notIn: ['unsurfaced'] },
-          lyricsVersions: { none: { isCanonical: true } },
+          lyricsVersions: { none: { OR: [{ isCanonical: true }, { status: 'approved' }] } },
         },
       }),
     ]);
@@ -384,7 +439,7 @@ router.get('/lyrics/sync-status', async (_req: Request, res: Response) => {
         rawLyrics: { not: '' },
         isAvailable: true,
         category: { notIn: ['unsurfaced'] },
-        lyricsVersions: { none: { isCanonical: true } },
+        lyricsVersions: { none: { OR: [{ isCanonical: true }, { status: 'approved' }] } },
       },
       select: { durationMs: true },
     });
@@ -399,6 +454,7 @@ router.get('/lyrics/sync-status', async (_req: Request, res: Response) => {
       eligible,
       estimatedHours: Math.round(estimatedHours * 10) / 10,
       hasApiKey: !!process.env.ASSEMBLYAI_API_KEY,
+      hasGeniusKey: !!process.env.GENIUS_ACCESS_TOKEN,
     });
   } catch (err) {
     console.error('Lyrics sync status error:', err);

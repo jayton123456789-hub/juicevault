@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USER & AUTH ────────────────────────────────────────
+
+enum UserRole {
+  admin
+  trusted_contributor
+  user
+}
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  passwordHash    String   @map("password_hash")
+  displayName     String   @map("display_name")
+  role            UserRole @default(user)
+  invitedBy       String?  @map("invited_by")
+  reputationScore Int      @default(0) @map("reputation_score")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  inviter          User?              @relation("InviteChain", fields: [invitedBy], references: [id])
+  invitees         User[]             @relation("InviteChain")
+  lyricsVersions   LyricsVersion[]    @relation("LyricsAuthor")
+  reviewedLyrics   LyricsVersion[]    @relation("LyricsReviewer")
+  songComments     SongComment[]
+  brokenReports    BrokenTrackReport[]
+  createdInvites   Invite[]           @relation("InviteCreator")
+  usedInvite       Invite?            @relation("InviteUser")
+  settingsUpdates  AppSetting[]
+
+  @@map("users")
+}
+
+model Invite {
+  id        String    @id @default(uuid())
+  code      String    @unique
+  createdBy String    @map("created_by")
+  usedBy    String?   @unique @map("used_by")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  creator User  @relation("InviteCreator", fields: [createdBy], references: [id])
+  user    User? @relation("InviteUser", fields: [usedBy], references: [id])
+
+  @@map("invites")
+}
+
+// ─── SONGS & CATALOG ────────────────────────────────────
+// Every field here maps 1:1 to the real Juice WRLD API Song Model.
+// See API_AUDIT.md for the full field mapping.
+
+enum SongCategory {
+  released
+  unreleased
+  unsurfaced
+  recording_session
+}
+
+model Era {
+  id          String @id @default(uuid())
+  externalId  Int    @unique @map("external_id")   // API era.id
+  name        String                                 // e.g. "Death Race For Love"
+  description String @default("")                    // e.g. "Death Race For Love Era"
+  timeFrame   String @default("") @map("time_frame") // e.g. "(December 2018-December 2019)"
+  playCount   Int    @default(0) @map("play_count")  // API era.play_count
+  sortOrder   Int    @default(0) @map("sort_order")  // Our ordering
+
+  songs Song[]
+
+  @@map("eras")
+}
+
+model Song {
+  id        String       @id @default(uuid())
+
+  // ── External API identifiers ──────────────────────────
+  externalId   Int          @unique @map("external_id")     // API "id" — internal DB integer
+  publicId     Int?         @map("public_id")               // API "public_id"
+  originalKey  String       @default("") @map("original_key") // API "original_key"
+
+  // ── Core identity ─────────────────────────────────────
+  name         String                                        // API "name" — song title
+  category     SongCategory @default(unreleased)             // API "category"
+  filePath     String?      @map("file_path")                // API "path" — THIS is the streaming path
+  eraId        String?      @map("era_id")                   // FK to our Era table
+
+  // ── Track metadata ────────────────────────────────────
+  // API "track_titles" array → stored as SongAlias records
+  creditedArtists   String  @default("") @map("credited_artists")
+  producers         String  @default("")
+  engineers         String  @default("")
+  recordingLocation String  @default("") @map("recording_location")
+  recordDates       String  @default("") @map("record_dates")
+  length            String  @default("")     // String like "3:59" — NOT integer
+  bitrate           String  @default("")
+
+  // ── Extended metadata ─────────────────────────────────
+  additionalInfo     String @default("") @map("additional_info")
+  fileNames          String @default("") @map("file_names")
+  instrumentals      String @default("")
+  previewDate        String @default("") @map("preview_date")
+  releaseDate        String @default("") @map("release_date")
+  dates              String @default("")
+  sessionTitles      String @default("") @map("session_titles")
+  sessionTracking    String @default("") @map("session_tracking")
+  instrumentalNames  String @default("") @map("instrumental_names")
+  notes              String @default("")     // Combined notes JSON string from API
+
+  // ── Lyrics (raw text from API — untimed) ──────────────
+  rawLyrics          String @default("") @map("raw_lyrics") @db.Text
+
+  // ── Leak/release info ─────────────────────────────────
+  dateLeaked         String @default("") @map("date_leaked")
+  leakType           String @default("") @map("leak_type")
+  imageUrl           String @default("") @map("image_url")
+
+  // ── Snippets (from API, stored as JSON array) ─────────
+  snippets           Json   @default("[]")
+
+  // ── Our computed/app-level fields ─────────────────────
+  durationMs         Int?   @map("duration_ms")        // Parsed from "length" string
+  isAvailable        Boolean @default(true) @map("is_available")
+  lastHealthCheck    DateTime? @map("last_health_check")
+  playCount          Int    @default(0) @map("play_count")
+  lastSyncedAt       DateTime? @map("last_synced_at")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  era            Era?                @relation(fields: [eraId], references: [id])
+  aliases        SongAlias[]
+  lyricsVersions LyricsVersion[]
+  comments       SongComment[]
+  brokenReports  BrokenTrackReport[]
+
+  @@index([category])
+  @@index([name])
+  @@index([filePath])
+  @@map("songs")
+}
+
+model SongAlias {
+  id        String  @id @default(uuid())
+  songId    String  @map("song_id")
+  alias     String
+  isPrimary Boolean @default(false) @map("is_primary")
+
+  song Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@index([alias])
+  @@index([songId])
+  @@map("song_aliases")
+}
+
+// ─── LYRICS (TIMED — OUR SYSTEM) ───────────────────────
+// The external API provides raw text lyrics (Song.rawLyrics).
+// OUR system layers millisecond-precision timing on top.
+// Each LyricsVersion stores a full set of timed lines for a song.
+
+enum LyricsStatus {
+  draft
+  pending_review
+  approved
+  rejected
+}
+
+enum LyricsSource {
+  manual           // Hand-timed by a user in the editor
+  auto_generated   // AI rough-pass timing
+  imported_lrc     // Imported from an LRC file
+  imported_api     // Seeded from the API's raw lyrics text (untimed)
+}
+
+model LyricsVersion {
+  id            String       @id @default(uuid())
+  songId        String       @map("song_id")
+  authorId      String       @map("author_id")
+  versionNumber Int          @map("version_number")
+  status        LyricsStatus @default(draft)
+
+  // The timed lyrics payload — JSON array:
+  // [{ "id": "l1", "start_ms": 1230, "end_ms": 4500, "text": "line text", "confidence": 0.82 }, ...]
+  lyricsData    Json         @map("lyrics_data")
+
+  source        LyricsSource @default(manual)
+  reviewNotes   String?      @map("review_notes")
+  reviewedBy    String?      @map("reviewed_by")
+  reviewedAt    DateTime?    @map("reviewed_at")
+  isCanonical   Boolean      @default(false) @map("is_canonical")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  song     Song  @relation(fields: [songId], references: [id], onDelete: Cascade)
+  author   User  @relation("LyricsAuthor", fields: [authorId], references: [id])
+  reviewer User? @relation("LyricsReviewer", fields: [reviewedBy], references: [id])
+
+  @@unique([songId, versionNumber])
+  @@index([songId, isCanonical])
+  @@index([status])
+  @@map("lyrics_versions")
+}
+
+// ─── COMMUNITY ──────────────────────────────────────────
+
+model SongComment {
+  id          String   @id @default(uuid())
+  songId      String   @map("song_id")
+  userId      String   @map("user_id")
+  text        String
+  timestampMs Int?     @map("timestamp_ms")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  song Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([songId])
+  @@map("song_comments")
+}
+
+model BrokenTrackReport {
+  id         String   @id @default(uuid())
+  songId     String   @map("song_id")
+  reportedBy String   @map("reported_by")
+  reason     String
+  status     String   @default("open")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  song     Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+  reporter User @relation(fields: [reportedBy], references: [id])
+
+  @@index([status])
+  @@map("broken_track_reports")
+}
+
+// ─── APP SETTINGS ───────────────────────────────────────
+
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  updater User? @relation(fields: [updatedBy], references: [id])
+
+  @@map("app_settings")
+}

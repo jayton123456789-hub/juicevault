@@ -1,0 +1,23 @@
+{
+  "name": "juicevault",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/backend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev --workspace=packages/backend",
+    "dev:frontend": "npm run dev --workspace=packages/frontend",
+    "build": "npm run build --workspace=packages/backend && npm run build --workspace=packages/frontend",
+    "db:migrate": "npm run db:migrate --workspace=packages/backend",
+    "db:seed": "npm run db:seed --workspace=packages/backend",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "sync:catalog": "npm run sync:catalog --workspace=packages/backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  }
+}

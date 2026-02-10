@@ -26,6 +26,9 @@ import adminRoutes from './routes/admin';
 
 const app = express();
 
+// Trust proxy (required for Render, Railway, etc.)
+app.set('trust proxy', 1);
+
 // ─── Global Middleware ──────────────────────────────────
 
 const env = getEnv();

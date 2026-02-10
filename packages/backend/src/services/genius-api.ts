@@ -1,6 +1,6 @@
 /**
- * Genius API Service - Enhanced Version
- * Fetches lyrics from Genius with better unreleased song detection
+ * Genius API Service - ULTRA Enhanced Version
+ * Fetches lyrics from Genius with aggressive unreleased song detection
  */
 
 const GENIUS_BASE = 'https://api.genius.com';
@@ -56,8 +56,26 @@ function isJuiceWrldArtist(artistName: string): boolean {
          lower.includes('wrld') || 
          lower.includes('999') ||
          lower.includes('jarad') ||
-         lower.includes('bibby') || // Grade A
-         lower.includes('lil bibby');
+         lower.includes('bibby') ||
+         lower.includes('grade a');
+}
+
+/**
+ * Check if artist could be a feature collaborator
+ */
+function isCollaboratorArtist(artistName: string): boolean {
+  const lower = artistName.toLowerCase();
+  const collaborators = [
+    'nicki minaj', 'future', 'young thug', 'travis scott', 
+    'lil uzi vert', 'polo g', 'marshmello', 'elton john',
+    'benny blanco', 'clever', 'chain smokers', 'halsey',
+    'seezyn', 'suga', 'bts', 'ellie goulding', 'weeknd',
+    'drake', 'lil durk', 'gunna', 'nav', 'trippie redd',
+    'lil tecca', 'nba youngboy', 'ynw', 'ski mask', 'xxx',
+    'carnage', 'waka flocka', 'g herbo', 'lil yachty',
+    'kodak black', ' Offset', 'quavo', 'takeoff', 'migos'
+  ];
+  return collaborators.some(c => lower.includes(c));
 }
 
 /**
@@ -70,10 +88,8 @@ function similarity(str1: string, str2: string): number {
   if (s1 === s2) return 1;
   if (s1.length < 3 || s2.length < 3) return 0;
   
-  // Check if one contains the other
   if (s1.includes(s2) || s2.includes(s1)) return 0.9;
   
-  // Levenshtein distance
   const matrix: number[][] = [];
   for (let i = 0; i <= s1.length; i++) matrix[i] = [i];
   for (let j = 0; j <= s2.length; j++) matrix[0][j] = j;
@@ -94,91 +110,167 @@ function similarity(str1: string, str2: string): number {
 }
 
 /**
- * Clean song name for better searching
+ * Aggressively clean song name for searching
  */
-function cleanSongName(name: string): string {
-  return name
-    .replace(/\([^)]*\)/g, '') // Remove parentheses
-    .replace(/\[[^\]]*\]/g, '') // Remove brackets
-    .replace(/feat\..*$/i, '') // Remove feat.
-    .replace(/ft\..*$/i, '') // Remove ft.
-    .replace(/prod\..*$/i, '') // Remove prod.
-    .replace(/\.mp3$/i, '')
-    .replace(/\.wav$/i, '')
-    .trim();
+function cleanSongName(name: string): { base: string; variations: string[] } {
+  const variations: string[] = [];
+  
+  // Remove file extensions
+  let cleaned = name.replace(/\.(mp3|wav|flac|m4a)$/i, '');
+  
+  // Original after extension removal
+  variations.push(cleaned.trim());
+  
+  // Remove parentheses content (v1, v2, feat. etc)
+  cleaned = cleaned.replace(/\([^)]*\)/g, '');
+  variations.push(cleaned.trim());
+  
+  // Remove bracket content [v1], [feat.], etc
+  cleaned = cleaned.replace(/\[[^\]]*\]/g, '');
+  variations.push(cleaned.trim());
+  
+  // Remove feat/ft/prod
+  cleaned = cleaned.replace(/\s+(feat|ft|prod)\.?\s*.*$/i, '');
+  variations.push(cleaned.trim());
+  
+  // Remove "with" artist
+  cleaned = cleaned.replace(/\s+with\s+.*$/i, '');
+  variations.push(cleaned.trim());
+  
+  // Get just the first part (in case of dashes, pipes, etc)
+  const firstPart = cleaned.split(/[-|]/)[0].trim();
+  if (firstPart && firstPart.length > 2 && !variations.includes(firstPart)) {
+    variations.push(firstPart);
+  }
+  
+  // Remove numbers at end
+  const noNumbers = cleaned.replace(/\s+\d+$/g, '').trim();
+  if (noNumbers && noNumbers.length > 2 && !variations.includes(noNumbers)) {
+    variations.push(noNumbers);
+  }
+  
+  // Final base name
+  const base = cleaned.trim();
+  
+  // Remove duplicates and empty
+  const unique = [...new Set(variations.filter(v => v.length > 2))];
+  
+  return { base, variations: unique };
 }
 
 /**
- * Search for a Juice WRLD song on Genius with multiple strategies
+ * Search for a Juice WRLD song on Genius with AGGRESSIVE strategies
  */
 export async function findJuiceWrldSong(songName: string): Promise<{ url: string; geniusId: number } | null> {
-  const cleanedName = cleanSongName(songName);
+  const { base, variations } = cleanSongName(songName);
   
-  // Strategy 1: Direct "Juice WRLD [song]" search
-  let hits = await searchGenius(`Juice WRLD ${cleanedName}`);
+  console.log(`[GENIUS] Searching for "${songName}" - variations:`, variations);
   
-  for (const hit of hits.slice(0, 5)) {
-    const artist = hit.result.primary_artist.name;
-    const title = hit.result.title;
+  const triedUrls = new Set<string>();
+  
+  // Strategy 1: Try all variations with "Juice WRLD" prefix
+  for (const variation of variations.slice(0, 3)) {
+    const hits = await searchGenius(`Juice WRLD ${variation}`);
     
-    if (isJuiceWrldArtist(artist)) {
-      const titleSim = similarity(title, cleanedName);
-      if (titleSim > 0.6) {
+    for (const hit of hits.slice(0, 5)) {
+      const artist = hit.result.primary_artist.name;
+      const title = hit.result.title;
+      const url = hit.result.url;
+      
+      if (triedUrls.has(url)) continue;
+      
+      // Match if it's Juice or a known collaborator
+      if (isJuiceWrldArtist(artist) || isCollaboratorArtist(artist)) {
+        const titleSim = similarity(title, base);
+        const titleSimOriginal = similarity(title, songName);
+        
+        if (titleSim > 0.5 || titleSimOriginal > 0.5) {
+          console.log(`[GENIUS] ✅ Found: "${title}" by ${artist} (sim: ${Math.max(titleSim, titleSimOriginal).toFixed(2)})`);
+          return { url, geniusId: hit.result.id };
+        }
+      }
+    }
+  }
+  
+  // Strategy 2: Try variations without artist (catches "Song (feat. Juice WRLD)" on other artist pages)
+  for (const variation of variations.slice(0, 3)) {
+    const hits = await searchGenius(variation);
+    
+    for (const hit of hits.slice(0, 5)) {
+      const artist = hit.result.primary_artist.name;
+      const title = hit.result.title;
+      const url = hit.result.url;
+      
+      if (triedUrls.has(url)) continue;
+      triedUrls.add(url);
+      
+      // Look for Juice WRLD in title OR artist
+      const titleLower = title.toLowerCase();
+      const artistLower = artist.toLowerCase();
+      
+      const hasJuiceInTitle = titleLower.includes('juice') || titleLower.includes('wrld');
+      const isJuiceArtist = isJuiceWrldArtist(artist);
+      const isCollabArtist = isCollaboratorArtist(artist);
+      
+      if (hasJuiceInTitle || isJuiceArtist || isCollabArtist) {
+        const titleSim = similarity(title, base);
+        const titleSimOriginal = similarity(title, songName);
+        
+        if (titleSim > 0.6 || titleSimOriginal > 0.6 || 
+            titleLower.includes(base.toLowerCase()) ||
+            base.toLowerCase().includes(titleLower.replace(/[^\w]/g, ''))) {
+          console.log(`[GENIUS] ✅ Found (no prefix): "${title}" by ${artist}`);
+          return { url, geniusId: hit.result.id };
+        }
+      }
+    }
+  }
+  
+  // Strategy 3: Try with "unreleased" tag
+  for (const variation of [base, variations[0]]) {
+    const hits = await searchGenius(`Juice WRLD ${variation} unreleased`);
+    
+    for (const hit of hits.slice(0, 3)) {
+      if (isJuiceWrldArtist(hit.result.primary_artist.name)) {
+        console.log(`[GENIUS] ✅ Found (unreleased tag): "${hit.result.title}"`);
         return { url: hit.result.url, geniusId: hit.result.id };
       }
     }
   }
   
-  // Strategy 2: Just the song name (for features or alternative listings)
-  hits = await searchGenius(cleanedName);
-  
-  for (const hit of hits.slice(0, 5)) {
-    const artist = hit.result.primary_artist.name;
-    const title = hit.result.title;
+  // Strategy 4: Try with "leaked" or "leak" tag
+  for (const variation of [base, variations[0]]) {
+    const hits = await searchGenius(`Juice WRLD ${variation} leak`);
     
-    if (isJuiceWrldArtist(artist)) {
-      const titleSim = similarity(title, cleanedName);
-      if (titleSim > 0.6) {
+    for (const hit of hits.slice(0, 3)) {
+      if (isJuiceWrldArtist(hit.result.primary_artist.name)) {
+        console.log(`[GENIUS] ✅ Found (leak tag): "${hit.result.title}"`);
         return { url: hit.result.url, geniusId: hit.result.id };
       }
     }
   }
   
-  // Strategy 3: Search with "unreleased" tag (common for leaks)
-  hits = await searchGenius(`Juice WRLD ${cleanedName} unreleased`);
-  
-  for (const hit of hits.slice(0, 3)) {
-    const artist = hit.result.primary_artist.name;
-    if (isJuiceWrldArtist(artist)) {
-      return { url: hit.result.url, geniusId: hit.result.id };
-    }
-  }
-  
-  // Strategy 4: Search with "leak" tag
-  hits = await searchGenius(`Juice WRLD ${cleanedName} leak`);
-  
-  for (const hit of hits.slice(0, 3)) {
-    const artist = hit.result.primary_artist.name;
-    if (isJuiceWrldArtist(artist)) {
-      return { url: hit.result.url, geniusId: hit.result.id };
-    }
-  }
-  
-  // Strategy 5: Loose match - any Juice WRLD song with partial title match
-  hits = await searchGenius(`Juice WRLD ${cleanedName.split(' ')[0]}`);
-  
-  for (const hit of hits.slice(0, 3)) {
-    const artist = hit.result.primary_artist.name;
-    const title = hit.result.title;
+  // Strategy 5: Try first word only + Juice WRLD (for long song names)
+  const firstWord = base.split(' ')[0];
+  if (firstWord && firstWord.length > 3) {
+    const hits = await searchGenius(`Juice WRLD ${firstWord}`);
     
-    if (isJuiceWrldArtist(artist)) {
-      const titleSim = similarity(title, cleanedName);
-      if (titleSim > 0.7) {
-        return { url: hit.result.url, geniusId: hit.result.id };
+    for (const hit of hits.slice(0, 3)) {
+      const title = hit.result.title;
+      if (isJuiceWrldArtist(hit.result.primary_artist.name)) {
+        // Check if the full base name is contained in the result
+        const titleClean = title.toLowerCase().replace(/[^\w]/g, '');
+        const baseClean = base.toLowerCase().replace(/[^\w]/g, '');
+        
+        if (titleClean.includes(baseClean) || baseClean.includes(titleClean)) {
+          console.log(`[GENIUS] ✅ Found (first word): "${title}"`);
+          return { url: hit.result.url, geniusId: hit.result.id };
+        }
       }
     }
   }
   
+  console.log(`[GENIUS] ❌ Not found: "${songName}"`);
   return null;
 }
 
@@ -192,16 +284,28 @@ export async function scrapeLyricsFromUrl(url: string): Promise<string | null> {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
+        'Cache-Control': 'no-cache',
       },
       signal: AbortSignal.timeout(20000),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log(`[GENIUS] Scrape failed: ${res.status} for ${url}`);
+      return null;
+    }
 
     const html = await res.text();
     const lyrics = extractLyricsFromHtml(html);
+    
+    if (lyrics) {
+      console.log(`[GENIUS] Scraped ${lyrics.length} chars from ${url}`);
+    } else {
+      console.log(`[GENIUS] No lyrics found on page: ${url}`);
+    }
+    
     return lyrics;
-  } catch {
+  } catch (err: any) {
+    console.log(`[GENIUS] Scrape error: ${err?.message} for ${url}`);
     return null;
   }
 }
@@ -210,7 +314,9 @@ export async function scrapeLyricsFromUrl(url: string): Promise<string | null> {
  * Extract lyrics text from Genius HTML page
  */
 function extractLyricsFromHtml(html: string): string | null {
-  // Genius uses data-lyrics-container="true" divs
+  // Try multiple selectors for different Genius page versions
+  
+  // Method 1: data-lyrics-container (most common)
   const containerRegex = /data-lyrics-container="true"[^>]*>([\s\S]*?)<\/div>/g;
   const containers: string[] = [];
   let match;
@@ -219,19 +325,32 @@ function extractLyricsFromHtml(html: string): string | null {
     containers.push(match[1]);
   }
 
+  // Method 2: Lyrics__Container class
   if (!containers.length) {
-    // Fallback: try the older Lyrics__Container class
     const oldRegex = /class="Lyrics__Container[^"]*"[^>]*>([\s\S]*?)<\/div>/g;
     while ((match = oldRegex.exec(html)) !== null) {
       containers.push(match[1]);
     }
   }
   
-  // Fallback 2: Try new React-based structure
+  // Method 3: Any Lyrics_ class
   if (!containers.length) {
     const reactRegex = /class="[^"]*Lyrics_[^"]*"[^>]*>([\s\S]*?)<\/div>/gi;
     while ((match = reactRegex.exec(html)) !== null) {
       containers.push(match[1]);
+    }
+  }
+  
+  // Method 4: Try finding lyrics in JSON-LD
+  if (!containers.length) {
+    const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    if (jsonLdMatch) {
+      try {
+        const data = JSON.parse(jsonLdMatch[1]);
+        if (data['@type'] === 'MusicRecording' && data.recordingOf?.lyrics?.text) {
+          return data.recordingOf.lyrics.text;
+        }
+      } catch {}
     }
   }
 

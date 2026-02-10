@@ -21,8 +21,10 @@ type AutoLyricsStatus = {
   };
 };
 
-const MAX_GENIUS_WORKERS = Math.min(Math.max(Number(process.env.GENIUS_SYNC_WORKERS || 5), 1), 8);
-const MAX_ALIGN_WORKERS = Math.min(Math.max(Number(process.env.ASSEMBLYAI_SYNC_WORKERS || 4), 1), 8);
+const MAX_GENIUS_WORKERS = Math.min(Math.max(Number(process.env.GENIUS_SYNC_WORKERS || 5), 1), 5);
+const MAX_ALIGN_WORKERS = Math.min(Math.max(Number(process.env.ASSEMBLYAI_SYNC_WORKERS || 4), 1), 5);
+const MAX_GENIUS_SCAN = Math.max(Number(process.env.GENIUS_SYNC_MAX_SONGS || 0), 0);
+const MAX_TIMING_SCAN = Math.max(Number(process.env.ASSEMBLYAI_SYNC_MAX_SONGS || 0), 0);
 const API_BASE = process.env.JUICEWRLD_API_BASE || 'https://juicewrldapi.com/juicewrld';
 const LOG_LIMIT = 250;
 
@@ -67,7 +69,7 @@ function resetStats(mode: AutoLyricsMode, reason: string): void {
     timingRetimed: 0,
     errors: 0,
   };
-  log(`[AUTO-LYRICS] Triggered (${mode}) by ${reason}`);
+  log(`[AUTO-LYRICS] Triggered (${mode}) by ${reason} | workers: genius=${MAX_GENIUS_WORKERS}, timing=${MAX_ALIGN_WORKERS}`);
 }
 
 function finishStatus(ok: boolean): void {
@@ -107,6 +109,7 @@ async function fetchMissingRawLyrics(): Promise<void> {
       category: { in: ['released', 'unreleased'] },
     },
     select: { id: true, name: true },
+    ...(MAX_GENIUS_SCAN > 0 ? { take: MAX_GENIUS_SCAN } : {}),
   });
 
   status.stats.geniusCandidates = songs.length;
@@ -175,6 +178,7 @@ async function syncTimedLyrics(forceRetime: boolean): Promise<void> {
         orderBy: [{ isCanonical: 'desc' }, { versionNumber: 'desc' }],
       },
     },
+    ...(MAX_TIMING_SCAN > 0 ? { take: MAX_TIMING_SCAN } : {}),
   });
 
   const candidates = songs.filter((song) => {

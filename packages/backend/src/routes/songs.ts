@@ -213,7 +213,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
         isAvailable: s.isAvailable,
         hasFilePath: !!s.filePath,
         playCount: s.playCount,
-        hasLyrics: s.lyricsVersions.length > 0,
+        hasLyrics: s.lyricsVersions.length > 0 || s.rawLyrics.length > 0,
         hasRawLyrics: s.rawLyrics.length > 0,
         imageUrl: s.imageUrl,
         leakType: s.leakType,

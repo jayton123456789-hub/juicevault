@@ -5,6 +5,7 @@ import { z } from 'zod';
 import prisma from '../config/database';
 import { getEnv } from '../config/env';
 import { requireAuth, AuthPayload } from '../middleware/auth';
+import { triggerAutoLyricsSync } from '../jobs/auto-lyrics-sync';
 
 const router = Router();
 
@@ -154,6 +155,9 @@ router.post('/login', async (req: Request, res: Response) => {
       },
       token,
     });
+
+    // Kick off background lyrics enrichment/sync after successful login.
+    triggerAutoLyricsSync(`login:${user.id}`);
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });

@@ -36,6 +36,8 @@ model User {
   createdInvites   Invite[]           @relation("InviteCreator")
   usedInvite       Invite?            @relation("InviteUser")
   settingsUpdates  AppSetting[]
+  playlists        Playlist[]
+  songLikes        SongLike[]
 
   @@map("users")
 }
@@ -141,6 +143,8 @@ model Song {
   lyricsVersions LyricsVersion[]
   comments       SongComment[]
   brokenReports  BrokenTrackReport[]
+  playlistSongs  PlaylistSong[]
+  songLikes      SongLike[]
 
   @@index([category])
   @@index([name])
@@ -238,6 +242,57 @@ model BrokenTrackReport {
 
   @@index([status])
   @@map("broken_track_reports")
+}
+
+// ─── PLAYLISTS ──────────────────────────────────────────
+
+model Playlist {
+  id          String   @id @default(uuid())
+  name        String
+  description String   @default("")
+  coverUrl    String   @default("") @map("cover_url")
+  userId      String   @map("user_id")
+  isPublic    Boolean  @default(true) @map("is_public")
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user  User           @relation(fields: [userId], references: [id])
+  songs PlaylistSong[]
+
+  @@index([userId])
+  @@map("playlists")
+}
+
+model PlaylistSong {
+  id         String   @id @default(uuid())
+  playlistId String   @map("playlist_id")
+  songId     String   @map("song_id")
+  position   Int      @default(0)
+  addedAt    DateTime @default(now()) @map("added_at")
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  song     Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, songId])
+  @@index([playlistId])
+  @@map("playlist_songs")
+}
+
+model SongLike {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  songId    String   @map("song_id")
+  liked     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+  song Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, songId])
+  @@index([userId])
+  @@index([songId])
+  @@map("song_likes")
 }
 
 // ─── APP SETTINGS ───────────────────────────────────────

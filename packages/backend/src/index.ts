@@ -23,6 +23,7 @@ import lyricsRoutes from './routes/lyrics';
 import searchRoutes from './routes/search';
 import radioRoutes from './routes/radio';
 import adminRoutes from './routes/admin';
+import playlistRoutes from './routes/playlists';
 
 const app = express();
 
@@ -39,7 +40,9 @@ app.use(helmet({
 }));
 
 app.use(cors({
-  origin: env.FRONTEND_URL,
+  origin: env.NODE_ENV === 'production'
+    ? [env.FRONTEND_URL, 'https://juicevault.onrender.com']
+    : true,
   credentials: true,
 }));
 
@@ -77,6 +80,7 @@ app.use('/api/songs', apiLimiter, lyricsRoutes);     // Mounted under /api/songs
 app.use('/api/search', apiLimiter, searchRoutes);
 app.use('/api/radio', apiLimiter, radioRoutes);
 app.use('/api/admin', apiLimiter, adminRoutes);
+app.use('/api/playlists', apiLimiter, playlistRoutes);
 
 // Stream endpoint gets its own stricter limiter
 app.use('/api/songs/:id/stream', streamLimiter);

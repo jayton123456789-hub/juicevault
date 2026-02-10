@@ -10,6 +10,29 @@ const router = Router();
 // Returns distinct categories with counts (for filter chips)
 // MUST be before /:id route
 
+// ─── GET /api/songs/eras ────────────────────────────────
+// Returns all eras for filter dropdowns
+
+router.get('/eras', requireAuth, async (_req: Request, res: Response) => {
+  try {
+    const eras = await prisma.era.findMany({
+      orderBy: { sortOrder: 'asc' },
+      include: { _count: { select: { songs: true } } },
+    });
+    res.json({
+      eras: eras.map(e => ({
+        id: e.id,
+        name: e.name,
+        timeFrame: e.timeFrame,
+        songCount: e._count.songs,
+      })),
+    });
+  } catch (err) {
+    console.error('Eras error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/categories', requireAuth, async (_req: Request, res: Response) => {
   try {
     const results = await prisma.song.groupBy({
@@ -98,6 +121,7 @@ const listSchema = z.object({
   category: z.string().optional(),
   era: z.string().optional(),
   search: z.string().optional(),
+  searchLyrics: z.coerce.boolean().optional(),
   excludeCategories: z.string().optional(), // comma-separated: "unsurfaced,recording_session"
   sortBy: z.enum(['name', 'playCount', 'createdAt']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
@@ -123,12 +147,17 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     }
 
     if (params.search) {
-      where.OR = [
+      const searchFields: any[] = [
         { name: { contains: params.search, mode: 'insensitive' } },
         { creditedArtists: { contains: params.search, mode: 'insensitive' } },
         { producers: { contains: params.search, mode: 'insensitive' } },
         { aliases: { some: { alias: { contains: params.search, mode: 'insensitive' } } } },
       ];
+      // Add lyrics search if toggled
+      if (params.searchLyrics) {
+        searchFields.push({ rawLyrics: { contains: params.search, mode: 'insensitive' } });
+      }
+      where.OR = searchFields;
     }
 
     // Filter for songs with lyrics

@@ -25,6 +25,9 @@ const envSchema = z.object({
 
   // CORS
   FRONTEND_URL: z.string().default('http://localhost:3000'),
+
+  // Genius API
+  GENIUS_ACCESS_TOKEN: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -4283,107 +4283,130 @@ async function loadAdmin() {
       `;
     }
 
-    // Lyrics Sync Section
+    // Lyrics Sync Section - MODERN UI
     try {
       const syncStatus = await api('/admin/lyrics/sync-status');
-      const autoStatus = await api('/admin/lyrics/auto-sync/status').catch(() => ({ running: false }));
+      const autoStatus = await api('/admin/lyrics/auto-sync/status').catch(() => ({ running: false, progress: { percent: 0 } }));
       const pct = syncStatus.withRawLyrics > 0
         ? Math.round((syncStatus.withTimedLyrics / syncStatus.withRawLyrics) * 100)
         : 0;
 
       sectionsHtml += `
-        <div class="admin-section">
-          <h3>🎤 Lyrics Sync Control</h3>
-          
-          <!-- Status Panel -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px;">
-            <div style="background:var(--glass);padding:12px;border-radius:var(--radius-md);text-align:center;">
-              <div style="font-size:1.4rem;font-weight:700;color:var(--purple-300)">${syncStatus.withTimedLyrics}</div>
-              <div style="font-size:0.75rem;color:var(--text-muted)">Timed</div>
+        <style>
+          @keyframes syncPulse { 0%,100% { opacity:1;box-shadow:0 0 0 0 rgba(46,213,115,0.4); } 50% { opacity:0.8;box-shadow:0 0 0 8px rgba(46,213,115,0); } }
+          .sync-active { animation:syncPulse 1.5s infinite; }
+        </style>
+        <div class="admin-section" style="background:linear-gradient(135deg,var(--bg-card) 0%,var(--bg-raised) 100%);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+            <div style="width:48px;height:48px;border-radius:var(--radius-md);background:linear-gradient(135deg,var(--purple-600),var(--pink));display:flex;align-items:center;justify-content:center;font-size:24px;">🎤</div>
+            <div>
+              <h3 style="margin:0;font-size:1.2rem;font-weight:700;">Lyrics Sync Center</h3>
+              <p style="margin:4px 0 0;font-size:0.8rem;color:var(--text-muted);">Auto-fetch from Genius + AssemblyAI timing</p>
             </div>
-            <div style="background:var(--glass);padding:12px;border-radius:var(--radius-md);text-align:center;">
-              <div style="font-size:1.4rem;font-weight:700;color:var(--cyan)">${syncStatus.withRawLyrics}</div>
-              <div style="font-size:0.75rem;color:var(--text-muted)">Have Lyrics</div>
-            </div>
-            <div style="background:var(--glass);padding:12px;border-radius:var(--radius-md);text-align:center;">
-              <div style="font-size:1.4rem;font-weight:700;color:${syncStatus.eligible > 0 ? 'var(--orange)' : 'var(--green)'}">${syncStatus.eligible}</div>
-              <div style="font-size:0.75rem;color:var(--text-muted)">Need Timing</div>
-            </div>
-            <div style="background:var(--glass);padding:12px;border-radius:var(--radius-md);text-align:center;">
-              <div style="font-size:1.4rem;font-weight:700;color:${autoStatus.running ? 'var(--green)' : 'var(--text-muted)'}">${autoStatus.running ? '●' : '○'}</div>
-              <div style="font-size:0.75rem;color:var(--text-muted)">${autoStatus.running ? 'Running' : 'Idle'}</div>
+            <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+              <span style="padding:6px 12px;border-radius:var(--radius-full);font-size:0.75rem;font-weight:600;background:${syncStatus.hasGeniusKey ? 'rgba(46,213,115,0.15)' : 'rgba(255,71,87,0.15)'};color:${syncStatus.hasGeniusKey ? 'var(--green)' : 'var(--red)'};border:1px solid ${syncStatus.hasGeniusKey ? 'rgba(46,213,115,0.3)' : 'rgba(255,71,87,0.3)'}">
+                ${syncStatus.hasGeniusKey ? '● Genius Ready' : '○ Genius Offline'}
+              </span>
+              <span style="padding:6px 12px;border-radius:var(--radius-full);font-size:0.75rem;font-weight:600;background:${syncStatus.hasAssemblyAiKey ? 'rgba(46,213,115,0.15)' : 'rgba(255,71,87,0.15)'};color:${syncStatus.hasAssemblyAiKey ? 'var(--green)' : 'var(--red)'};border:1px solid ${syncStatus.hasAssemblyAiKey ? 'rgba(46,213,115,0.3)' : 'rgba(255,71,87,0.3)'}">
+                ${syncStatus.hasAssemblyAiKey ? '● AssemblyAI Ready' : '○ AssemblyAI Offline'}
+              </span>
             </div>
           </div>
 
-          <!-- Progress Bar -->
-          <div style="margin-bottom:16px;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-              <span style="font-size:0.8rem;color:var(--text-muted)">Timing Coverage</span>
-              <span style="font-size:0.8rem;font-weight:600;color:var(--purple-300)">${pct}%</span>
+          <!-- Stats Grid -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+            <div style="background:var(--bg-deep);padding:14px;border-radius:var(--radius-md);text-align:center;border:1px solid var(--border);">
+              <div style="font-size:1.6rem;font-weight:800;color:var(--purple-300);">${syncStatus.withTimedLyrics.toLocaleString()}</div>
+              <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;">Timed</div>
             </div>
-            <div style="height:8px;background:var(--glass);border-radius:4px;overflow:hidden;">
-              <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple-400),var(--cyan));border-radius:4px;transition:width 0.5s;"></div>
+            <div style="background:var(--bg-deep);padding:14px;border-radius:var(--radius-md);text-align:center;border:1px solid var(--border);">
+              <div style="font-size:1.6rem;font-weight:800;color:var(--cyan);">${syncStatus.withRawLyrics.toLocaleString()}</div>
+              <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;">Have Lyrics</div>
+            </div>
+            <div style="background:var(--bg-deep);padding:14px;border-radius:var(--radius-md);text-align:center;border:1px solid var(--border);">
+              <div style="font-size:1.6rem;font-weight:800;color:${syncStatus.eligible > 0 ? 'var(--orange)' : 'var(--green)'};">${syncStatus.eligible.toLocaleString()}</div>
+              <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;">Need Timing</div>
+            </div>
+            <div style="background:var(--bg-deep);padding:14px;border-radius:var(--radius-md);text-align:center;border:1px solid var(--border);">
+              <div style="font-size:1.6rem;font-weight:800;color:${autoStatus.running ? 'var(--green)' : 'var(--text-muted)'};">${autoStatus.running ? '⚡' : '⏸'}</div>
+              <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;">${autoStatus.running ? 'RUNNING' : 'IDLE'}</div>
             </div>
           </div>
 
-          <!-- API Status -->
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-            <span style="font-size:0.75rem;padding:4px 10px;border-radius:var(--radius-full);background:${syncStatus.hasAssemblyAiKey ? 'rgba(46,213,115,0.15)' : 'rgba(255,71,87,0.15)'};color:${syncStatus.hasAssemblyAiKey ? 'var(--green)' : 'var(--red)'}">
-              ${syncStatus.hasAssemblyAiKey ? '✅ AssemblyAI' : '❌ AssemblyAI'}
-            </span>
-            <span style="font-size:0.75rem;padding:4px 10px;border-radius:var(--radius-full);background:${syncStatus.hasGeniusKey ? 'rgba(46,213,115,0.15)' : 'rgba(255,71,87,0.15)'};color:${syncStatus.hasGeniusKey ? 'var(--green)' : 'var(--red)'}">
-              ${syncStatus.hasGeniusKey ? '✅ Genius' : '❌ Genius'}
-            </span>
+          <!-- Progress -->
+          <div style="margin-bottom:20px;padding:16px;background:var(--bg-deep);border-radius:var(--radius-md);border:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:0.85rem;font-weight:600;">Coverage</span>
+              <span style="font-size:1rem;font-weight:800;color:var(--purple-300);">${pct}%</span>
+            </div>
+            <div style="height:10px;background:var(--bg-card);border-radius:5px;overflow:hidden;">
+              <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple-500),var(--cyan));border-radius:5px;transition:width 0.5s;"></div>
+            </div>
           </div>
 
-          <!-- Auto-Sync Controls -->
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-            <button class="admin-btn" onclick="triggerAutoLyricsSync('full')" ${autoStatus.running ? 'disabled' : ''} title="Fetch Genius lyrics + sync timing">
+          <!-- Action Buttons -->
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;">
+            <button class="admin-btn" onclick="triggerAutoLyricsSync('full')" ${autoStatus.running ? 'disabled' : ''} style="padding:14px;background:linear-gradient(135deg,var(--purple-600),var(--purple-700));border:none;border-radius:var(--radius-md);color:#fff;font-weight:700;${autoStatus.running ? 'opacity:0.5;' : ''}">
               🚀 Full Sync
             </button>
-            <button class="admin-btn" onclick="triggerAutoLyricsSync('genius-only')" ${autoStatus.running ? 'disabled' : ''} title="Only fetch missing lyrics from Genius">
+            <button class="admin-btn" onclick="triggerAutoLyricsSync('genius-only')" ${autoStatus.running ? 'disabled' : ''} style="padding:14px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text);font-weight:700;${autoStatus.running ? 'opacity:0.5;' : ''}">
               📝 Genius Scan
             </button>
-            <button class="admin-btn" onclick="triggerAutoLyricsSync('timing-only')" ${autoStatus.running ? 'disabled' : ''} title="Only sync timing for songs with lyrics">
-              ⏱️ Sync Timing
+            <button class="admin-btn" onclick="triggerAutoLyricsSync('timing-only')" ${autoStatus.running ? 'disabled' : ''} style="padding:14px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text);font-weight:700;${autoStatus.running ? 'opacity:0.5;' : ''}">
+              ⏱ Sync Timing
             </button>
-            <button class="admin-btn" onclick="triggerAutoLyricsSync('timing-force')" ${autoStatus.running ? 'disabled' : ''} title="Force re-sync all auto-generated timings">
+            <button class="admin-btn" onclick="triggerAutoLyricsSync('timing-force')" ${autoStatus.running ? 'disabled' : ''} style="padding:14px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--orange);font-weight:700;${autoStatus.running ? 'opacity:0.5;' : ''}">
               🔄 Force Re-sync
-            </button>
-            <button class="admin-btn" onclick="toggleLyricsSyncLogs()" id="logsToggleBtn">
-              📋 Toggle Logs
             </button>
           </div>
 
           <!-- Live Status Panel -->
-          <div id="autoSyncStatusPanel" style="margin-bottom:16px;padding:12px;background:var(--glass);border-radius:var(--radius-md);border:1px solid var(--border);${autoStatus.running ? '' : 'display:none;'}">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <span style="font-size:0.8rem;font-weight:600;color:var(--purple-300)">🔄 ${autoStatus.mode || 'Idle'}</span>
-              <span style="font-size:0.75rem;color:var(--text-muted)">${autoStatus.stage || 'idle'}</span>
+          <div id="autoSyncStatusPanel" style="margin-bottom:20px;padding:16px;background:rgba(155,93,229,0.1);border-radius:var(--radius-md);border:1px solid var(--border);${autoStatus.running ? '' : 'display:none;'}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <span style="font-size:0.9rem;font-weight:700;color:var(--purple-300);">${autoStatus.mode || 'Syncing'}</span>
+              <span style="font-size:0.7rem;color:var(--text-muted);padding:4px 8px;background:var(--bg-card);border-radius:var(--radius-full);">${autoStatus.stage || 'idle'}</span>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:0.75rem;">
-              <div>Genius: <span id="syncGeniusFilled">${autoStatus.stats?.geniusFilled || 0}</span>/<span id="syncGeniusCandidates">${autoStatus.stats?.geniusCandidates || 0}</span></div>
-              <div>Timing: <span id="syncTimingSynced">${autoStatus.stats?.timingSynced || 0}</span>/<span id="syncTimingCandidates">${autoStatus.stats?.timingCandidates || 0}</span></div>
-              <div>Errors: <span id="syncErrors">${autoStatus.stats?.errors || 0}</span></div>
+            <div style="height:8px;background:var(--bg-card);border-radius:4px;overflow:hidden;margin-bottom:12px;">
+              <div id="syncProgressBar" style="height:100%;width:${autoStatus.progress?.percent || 0}%;background:var(--green);border-radius:4px;transition:width 0.5s;"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:0.75rem;">
+              <div style="text-align:center;padding:8px;background:var(--bg-card);border-radius:var(--radius-sm);">
+                <div style="font-size:1.1rem;font-weight:700;color:var(--purple-300);" id="syncGeniusFilled">${autoStatus.stats?.geniusFilled || 0}</div>
+                <div style="color:var(--text-muted);">Genius</div>
+              </div>
+              <div style="text-align:center;padding:8px;background:var(--bg-card);border-radius:var(--radius-sm);">
+                <div style="font-size:1.1rem;font-weight:700;color:var(--cyan);" id="syncTimingSynced">${autoStatus.stats?.timingSynced || 0}</div>
+                <div style="color:var(--text-muted);">Timed</div>
+              </div>
+              <div style="text-align:center;padding:8px;background:var(--bg-card);border-radius:var(--radius-sm);">
+                <div style="font-size:1.1rem;font-weight:700;color:var(--red);" id="syncErrors">${autoStatus.stats?.errors || 0}</div>
+                <div style="color:var(--text-muted);">Errors</div>
+              </div>
             </div>
           </div>
 
-          <!-- Log Viewer -->
-          <div id="lyricsSyncLogs" style="display:none;margin-top:16px;padding:12px;background:var(--bg-deep);border-radius:var(--radius-md);border:1px solid var(--border);max-height:300px;overflow-y:auto;font-family:var(--font-mono);font-size:0.75rem;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <span style="font-weight:600;">📜 Sync Logs</span>
-              <button class="admin-btn" style="padding:4px 8px;font-size:0.7rem;" onclick="refreshLyricsSyncLogs()">Refresh</button>
+          <!-- Logs -->
+          <div style="border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--bg-deep);border-bottom:1px solid var(--border);">
+              <span style="font-weight:600;font-size:0.85rem;">📜 Live Logs</span>
+              <div style="display:flex;gap:8px;">
+                <button class="admin-btn" onclick="refreshLyricsSyncLogs()" style="padding:6px 12px;font-size:0.7rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);">Refresh</button>
+                <button class="admin-btn" onclick="toggleLyricsSyncLogs()" style="padding:6px 12px;font-size:0.7rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);">Hide</button>
+              </div>
             </div>
-            <div id="lyricsSyncLogsContent" style="color:var(--text-muted);">Loading...</div>
+            <div id="lyricsSyncLogs" style="display:block;max-height:200px;overflow-y:auto;padding:12px;background:var(--bg-deep);font-family:var(--font-mono);font-size:0.7rem;">
+              <div id="lyricsSyncLogsContent" style="color:var(--text-muted);">Click Refresh to load logs...</div>
+            </div>
           </div>
 
-          <div style="margin-top:16px;padding:12px;background:var(--glass);border-radius:var(--radius-md);border:1px solid var(--border);">
-            ${syncStatus.eligible > 0 ? `<p style="font-size:0.8rem;color:var(--orange);margin:0;">⚠️ ${syncStatus.eligible} songs ready for timing (~${syncStatus.estimatedHours}h of audio)</p>` : '<p style="font-size:0.8rem;color:var(--green);margin:0;">✅ All eligible songs have timed lyrics!</p>'}
+          <div style="padding:12px;background:${syncStatus.eligible > 0 ? 'rgba(255,158,44,0.1)' : 'rgba(46,213,115,0.1)'};border-radius:var(--radius-md);border:1px solid ${syncStatus.eligible > 0 ? 'rgba(255,158,44,0.3)' : 'rgba(46,213,115,0.3)'};text-align:center;">
+            <span style="font-size:0.85rem;color:${syncStatus.eligible > 0 ? 'var(--orange)' : 'var(--green)'};">
+              ${syncStatus.eligible > 0 ? `⚠️ ${syncStatus.eligible.toLocaleString()} songs ready for timing (~${syncStatus.estimatedHours}h)` : '✅ All caught up!'}
+            </span>
           </div>
         </div>
       `;
       
-      // Start polling if running
       if (autoStatus.running) {
         setTimeout(() => pollLyricsSyncStatus(), 2000);
       }
@@ -4446,18 +4469,24 @@ async function pollLyricsSyncStatus() {
     // Update status panel
     const panel = document.getElementById('autoSyncStatusPanel');
     if (panel) {
-      panel.style.display = 'block';
-      panel.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <span style="font-size:0.8rem;font-weight:600;color:var(--purple-300)">🔄 ${status.running ? status.mode : 'Idle'}</span>
-          <span style="font-size:0.75rem;color:var(--text-muted)">${status.stage || 'idle'}</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:0.75rem;">
-          <div>Genius: <span>${status.stats?.geniusFilled || 0}</span>/<span>${status.stats?.geniusCandidates || 0}</span></div>
-          <div>Timing: <span>${status.stats?.timingSynced || 0}</span>/<span>${status.stats?.timingCandidates || 0}</span></div>
-          <div>Errors: <span style="color:${(status.stats?.errors || 0) > 0 ? 'var(--red)' : 'inherit'}">${status.stats?.errors || 0}</span></div>
-        </div>
-      `;
+      if (status.running) {
+        panel.style.display = 'block';
+      }
+      
+      // Update progress bar
+      const progressBar = document.getElementById('syncProgressBar');
+      if (progressBar && status.progress) {
+        progressBar.style.width = `${status.progress.percent}%`;
+      }
+      
+      // Update stats
+      const geniusEl = document.getElementById('syncGeniusFilled');
+      const timingEl = document.getElementById('syncTimingSynced');
+      const errorsEl = document.getElementById('syncErrors');
+      
+      if (geniusEl) geniusEl.textContent = status.stats?.geniusFilled || 0;
+      if (timingEl) timingEl.textContent = status.stats?.timingSynced || 0;
+      if (errorsEl) errorsEl.textContent = status.stats?.errors || 0;
     }
     
     // Continue polling if still running
@@ -4469,6 +4498,7 @@ async function pollLyricsSyncStatus() {
       refreshLyricsSyncLogs();
       // Reload admin UI to update buttons
       loadAdmin();
+      toast('✅ Sync complete!', 'success');
     }
   } catch (err) {
     console.error('Poll status error:', err);

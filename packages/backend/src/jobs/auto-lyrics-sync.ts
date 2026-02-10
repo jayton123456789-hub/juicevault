@@ -1,10 +1,10 @@
 /**
- * Auto Lyrics Sync - Background Job Controller
+ * Auto Lyrics Sync - Ultra Fast Edition
  * 
  * Handles automatic lyrics fetching and timing sync with:
  * - Multiple modes: full, genius-only, timing-only, timing-force
- * - Bounded worker pools (configurable via env vars)
- * - Run status + stats tracking
+ * - AGGRESSIVE worker pools for maximum speed
+ * - Run status + stats tracking with progress
  * - Rolling logs
  * - Single-job locking to prevent overlaps
  */
@@ -13,15 +13,20 @@ import prisma from '../config/database';
 import { fetchGeniusLyrics } from '../services/genius-api';
 import { generateTimedLyrics } from '../services/lyric-aligner';
 
-type AutoLyricsMode = 'full' | 'genius-only' | 'timing-only' | 'timing-force';
+export type AutoLyricsMode = 'full' | 'genius-only' | 'timing-only' | 'timing-force';
 
-type AutoLyricsStatus = {
+export type AutoLyricsStatus = {
   running: boolean;
   mode: AutoLyricsMode | null;
   startedAt: string | null;
   finishedAt: string | null;
   lastTrigger: string | null;
   stage: 'idle' | 'genius' | 'timing' | 'done' | 'error';
+  progress: {
+    current: number;
+    total: number;
+    percent: number;
+  };
   stats: {
     geniusCandidates: number;
     geniusFilled: number;
@@ -32,14 +37,15 @@ type AutoLyricsStatus = {
   };
 };
 
-// Configuration - capped workers for resource management
-const MAX_GENIUS_WORKERS = Math.min(Math.max(Number(process.env.GENIUS_SYNC_WORKERS || 5), 1), 5);
-const MAX_ALIGN_WORKERS = Math.min(Math.max(Number(process.env.ASSEMBLYAI_SYNC_WORKERS || 4), 1), 5);
+// ⚡ ULTRA FAST Configuration
+const MAX_GENIUS_WORKERS = Math.min(Math.max(Number(process.env.GENIUS_SYNC_WORKERS || 10), 1), 15);
+const MAX_ALIGN_WORKERS = Math.min(Math.max(Number(process.env.ASSEMBLYAI_SYNC_WORKERS || 5), 1), 8);
 const API_BASE = process.env.JUICEWRLD_API_BASE || 'https://juicewrldapi.com/juicewrld';
-const LOG_LIMIT = 250;
+const LOG_LIMIT = 500;
 
 // State
 let runningJob: Promise<void> | null = null;
+let currentMode: AutoLyricsMode | null = null;
 const logs: string[] = [];
 const status: AutoLyricsStatus = {
   running: false,
@@ -48,6 +54,7 @@ const status: AutoLyricsStatus = {
   finishedAt: null,
   lastTrigger: null,
   stage: 'idle',
+  progress: { current: 0, total: 0, percent: 0 },
   stats: {
     geniusCandidates: 0,
     geniusFilled: 0,
@@ -70,10 +77,12 @@ function log(msg: string) {
 function resetStats(mode: AutoLyricsMode, reason: string): void {
   status.running = true;
   status.mode = mode;
+  currentMode = mode;
   status.startedAt = new Date().toISOString();
   status.finishedAt = null;
   status.lastTrigger = reason;
   status.stage = 'idle';
+  status.progress = { current: 0, total: 0, percent: 0 };
   status.stats = {
     geniusCandidates: 0,
     geniusFilled: 0,
@@ -82,35 +91,45 @@ function resetStats(mode: AutoLyricsMode, reason: string): void {
     timingRetimed: 0,
     errors: 0,
   };
-  log(`[AUTO-LYRICS] Triggered (${mode}) by ${reason}`);
+  log(`[AUTO-LYRICS] 🚀 STARTED (${mode}) by ${reason}`);
   log(`[AUTO-LYRICS] Workers: Genius=${MAX_GENIUS_WORKERS}, AssemblyAI=${MAX_ALIGN_WORKERS}`);
+}
+
+function updateProgress(current: number, total: number) {
+  status.progress.current = current;
+  status.progress.total = total;
+  status.progress.percent = total > 0 ? Math.round((current / total) * 100) : 0;
 }
 
 function finishStatus(ok: boolean): void {
   status.running = false;
   status.finishedAt = new Date().toISOString();
   status.stage = ok ? 'done' : 'error';
+  currentMode = null;
+  log(`[AUTO-LYRICS] ✅ COMPLETE - Status: ${status.stage}`);
 }
 
 function buildAudioUrl(filePath: string): string {
   return `${API_BASE}/files/download/?path=${encodeURIComponent(filePath)}`;
 }
 
-async function runQueue<T>(items: T[], workers: number, handler: (item: T) => Promise<void>): Promise<void> {
+async function runQueue<T>(items: T[], workers: number, handler: (item: T, index: number) => Promise<void>): Promise<void> {
   let idx = 0;
+  const total = items.length;
+  
   const worker = async () => {
-    while (idx < items.length) {
-      const i = idx;
-      idx += 1;
+    while (idx < total) {
+      const i = idx++;
       try {
-        await handler(items[i]);
+        await handler(items[i], i);
       } catch (err: any) {
         status.stats.errors += 1;
-        log(`[AUTO-LYRICS] Worker error: ${err?.message || 'Unknown'}`);
+        log(`[AUTO-LYRICS] ❌ Worker error: ${err?.message || 'Unknown'}`);
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(workers, items.length || 1) }, () => worker()));
+  
+  await Promise.all(Array.from({ length: Math.min(workers, total || 1) }, () => worker()));
 }
 
 // ─── Genius Stage ───────────────────────────────────────
@@ -118,7 +137,7 @@ async function runQueue<T>(items: T[], workers: number, handler: (item: T) => Pr
 async function fetchMissingRawLyrics(): Promise<void> {
   const token = process.env.GENIUS_ACCESS_TOKEN;
   if (!token) {
-    log('[AUTO-LYRICS] GENIUS_ACCESS_TOKEN missing; skipping Genius stage');
+    log('[AUTO-LYRICS] ⚠️ GENIUS_ACCESS_TOKEN missing; skipping Genius stage');
     return;
   }
 
@@ -131,40 +150,52 @@ async function fetchMissingRawLyrics(): Promise<void> {
       category: { in: ['released', 'unreleased'] },
     },
     select: { id: true, name: true },
+    orderBy: { name: 'asc' },
   });
 
   status.stats.geniusCandidates = songs.length;
-  log(`[AUTO-LYRICS] Genius stage: ${songs.length} songs missing raw lyrics`);
+  updateProgress(0, songs.length);
+  
+  log(`[AUTO-LYRICS] 🔍 Genius stage: ${songs.length} songs missing raw lyrics`);
+  log(`[AUTO-LYRICS] 🚀 Using ${MAX_GENIUS_WORKERS} parallel workers`);
 
   if (songs.length === 0) {
-    log('[AUTO-LYRICS] No songs need Genius lyrics');
+    log('[AUTO-LYRICS] ✨ No songs need Genius lyrics');
     return;
   }
 
-  await runQueue(songs, MAX_GENIUS_WORKERS, async (song) => {
+  let processed = 0;
+
+  await runQueue(songs, MAX_GENIUS_WORKERS, async (song, index) => {
     try {
       const result = await fetchGeniusLyrics(song.name);
-      if (!result) {
-        log(`[AUTO-LYRICS] No Genius result for "${song.name}"`);
-        return;
+      
+      if (result) {
+        await prisma.song.update({
+          where: { id: song.id },
+          data: {
+            rawLyrics: result.lyrics,
+            additionalInfo: `Lyrics source: Genius (${result.geniusUrl})`,
+          },
+        });
+        status.stats.geniusFilled += 1;
+        log(`[AUTO-LYRICS] ✅ [${index + 1}/${songs.length}] Filled: "${song.name}"`);
+      } else {
+        log(`[AUTO-LYRICS] ❌ [${index + 1}/${songs.length}] Not found: "${song.name}"`);
       }
-
-      await prisma.song.update({
-        where: { id: song.id },
-        data: {
-          rawLyrics: result.lyrics,
-          additionalInfo: `Lyrics source: Genius (${result.geniusUrl})`,
-        },
-      });
-      status.stats.geniusFilled += 1;
-      log(`[AUTO-LYRICS] ✅ Filled lyrics for "${song.name}"`);
+      
+      processed++;
+      if (processed % 10 === 0) {
+        updateProgress(processed, songs.length);
+      }
     } catch (err: any) {
       status.stats.errors += 1;
-      log(`[AUTO-LYRICS] Genius failed for "${song.name}": ${err?.message || 'Unknown'}`);
+      log(`[AUTO-LYRICS] 💥 [${index + 1}/${songs.length}] Error on "${song.name}": ${err?.message || 'Unknown'}`);
     }
   });
 
-  log(`[AUTO-LYRICS] Genius stage done. Filled lyrics for ${status.stats.geniusFilled}/${songs.length} songs`);
+  updateProgress(songs.length, songs.length);
+  log(`[AUTO-LYRICS] 🎉 Genius stage DONE: ${status.stats.geniusFilled}/${songs.length} songs filled`);
 }
 
 // ─── AssemblyAI Stage ───────────────────────────────────
@@ -172,13 +203,13 @@ async function fetchMissingRawLyrics(): Promise<void> {
 async function syncTimedLyrics(forceRetime: boolean): Promise<void> {
   const aaiKey = process.env.ASSEMBLYAI_API_KEY;
   if (!aaiKey) {
-    log('[AUTO-LYRICS] ASSEMBLYAI_API_KEY missing; skipping timing stage');
+    log('[AUTO-LYRICS] ⚠️ ASSEMBLYAI_API_KEY missing; skipping timing stage');
     return;
   }
 
   status.stage = 'timing';
 
-  // Get or create system user for auto-generated lyrics
+  // Get or create system user
   const systemUser = await prisma.user.upsert({
     where: { email: 'system@juicevault.local' },
     update: {},
@@ -212,37 +243,44 @@ async function syncTimedLyrics(forceRetime: boolean): Promise<void> {
         orderBy: [{ isCanonical: 'desc' }, { versionNumber: 'desc' }],
       },
     },
+    orderBy: { name: 'asc' },
   });
 
-  // Filter candidates based on forceRetime mode
+  // Filter candidates
   const candidates = songs.filter((song) => {
     if (!song.filePath || song.rawLyrics.trim().length < 20) return false;
-    if (!song.lyricsVersions.length) return true; // No timed version exists
-    // In force mode, only re-time auto-generated versions
+    if (!song.lyricsVersions.length) return true;
     return forceRetime && song.lyricsVersions[0]?.source === 'auto_generated';
   });
 
   status.stats.timingCandidates = candidates.length;
-  log(`[AUTO-LYRICS] AssemblyAI stage: ${candidates.length} songs need timing${forceRetime ? ' (force mode)' : ''}`);
+  updateProgress(0, candidates.length);
+  
+  log(`[AUTO-LYRICS] ⏱️ AssemblyAI stage: ${candidates.length} songs need timing${forceRetime ? ' (FORCE MODE)' : ''}`);
+  log(`[AUTO-LYRICS] 🚀 Using ${MAX_ALIGN_WORKERS} parallel workers`);
 
   if (candidates.length === 0) {
-    log('[AUTO-LYRICS] No songs need timing sync');
+    log('[AUTO-LYRICS] ✨ No songs need timing sync');
     return;
   }
 
-  await runQueue(candidates, MAX_ALIGN_WORKERS, async (song) => {
+  let processed = 0;
+
+  await runQueue(candidates, MAX_ALIGN_WORKERS, async (song, index) => {
     try {
       const hadVersion = song.lyricsVersions.length > 0;
       const result = await generateTimedLyrics(buildAudioUrl(song.filePath!), song.rawLyrics);
       
       if (!result?.timedLines?.length) {
-        log(`[AUTO-LYRICS] No timing result for "${song.name}"`);
+        log(`[AUTO-LYRICS] ⚠️ [${index + 1}/${candidates.length}] No timing: "${song.name}"`);
         return;
       }
 
       const timedCount = result.timedLines.filter((line) => line.confidence > 0).length;
-      if (timedCount / result.timedLines.length < 0.3) {
-        log(`[AUTO-LYRICS] Low confidence for "${song.name}" (${Math.round((timedCount / result.timedLines.length) * 100)}%)`);
+      const confidence = timedCount / result.timedLines.length;
+      
+      if (confidence < 0.3) {
+        log(`[AUTO-LYRICS] ⚠️ [${index + 1}/${candidates.length}] Low confidence (${Math.round(confidence * 100)}%): "${song.name}"`);
         return;
       }
 
@@ -279,14 +317,21 @@ async function syncTimedLyrics(forceRetime: boolean): Promise<void> {
 
       status.stats.timingSynced += 1;
       if (hadVersion) status.stats.timingRetimed += 1;
-      log(`[AUTO-LYRICS] ✅ Synced timing for "${song.name}" (${lyricsData.length} lines)`);
+      
+      processed++;
+      if (processed % 5 === 0) {
+        updateProgress(processed, candidates.length);
+      }
+      
+      log(`[AUTO-LYRICS] ✅ [${index + 1}/${candidates.length}] Synced: "${song.name}" (${lyricsData.length} lines, ${Math.round(confidence * 100)}% conf)`);
     } catch (err: any) {
       status.stats.errors += 1;
-      log(`[AUTO-LYRICS] Timing failed for "${song.name}": ${err?.message || 'Unknown'}`);
+      log(`[AUTO-LYRICS] 💥 [${index + 1}/${candidates.length}] Failed: "${song.name}" - ${err?.message || 'Unknown'}`);
     }
   });
 
-  log(`[AUTO-LYRICS] AssemblyAI stage done. Synced ${status.stats.timingSynced}/${candidates.length} songs`);
+  updateProgress(candidates.length, candidates.length);
+  log(`[AUTO-LYRICS] 🎉 AssemblyAI stage DONE: ${status.stats.timingSynced}/${candidates.length} songs synced`);
 }
 
 // ─── Main Job ───────────────────────────────────────────
@@ -294,16 +339,21 @@ async function syncTimedLyrics(forceRetime: boolean): Promise<void> {
 async function runAutoLyricsSync(mode: AutoLyricsMode): Promise<void> {
   const started = Date.now();
   
+  log(`[AUTO-LYRICS] ▶️ Starting run with mode: ${mode}`);
+  
+  // GENIUS-ONLY: Only fetch lyrics, NO TIMING
   if (mode === 'full' || mode === 'genius-only') {
     await fetchMissingRawLyrics();
   }
   
+  // TIMING MODES: Only do timing, skip Genius
   if (mode === 'full' || mode === 'timing-only' || mode === 'timing-force') {
     await syncTimedLyrics(mode === 'timing-force');
   }
   
   const elapsedSec = Math.round((Date.now() - started) / 1000);
-  log(`[AUTO-LYRICS] Job complete in ${elapsedSec}s`);
+  log(`[AUTO-LYRICS] ✅ COMPLETE in ${elapsedSec}s - Mode: ${mode}`);
+  log(`[AUTO-LYRICS] 📊 Results: Genius=${status.stats.geniusFilled}, Timing=${status.stats.timingSynced}, Errors=${status.stats.errors}`);
 }
 
 // ─── Public API ─────────────────────────────────────────
@@ -316,9 +366,13 @@ export function getAutoLyricsLogs(): string[] {
   return [...logs];
 }
 
+export function isAutoLyricsRunning(): boolean {
+  return status.running;
+}
+
 export function triggerAutoLyricsSync(reason: string, mode: AutoLyricsMode = 'full'): boolean {
   if (runningJob) {
-    log(`[AUTO-LYRICS] Job already running; skip trigger (${reason})`);
+    log(`[AUTO-LYRICS] ⛔ BLOCKED: Job already running (${status.mode})`);
     return false;
   }
 
@@ -330,7 +384,7 @@ export function triggerAutoLyricsSync(reason: string, mode: AutoLyricsMode = 'fu
     })
     .catch((err) => {
       status.stats.errors += 1;
-      log(`[AUTO-LYRICS] Job failed: ${err?.message || err}`);
+      log(`[AUTO-LYRICS] 💥 FATAL ERROR: ${err?.message || err}`);
       finishStatus(false);
     })
     .finally(() => {
@@ -339,6 +393,3 @@ export function triggerAutoLyricsSync(reason: string, mode: AutoLyricsMode = 'fu
 
   return true;
 }
-
-// Export types for use in other modules
-export type { AutoLyricsMode, AutoLyricsStatus };

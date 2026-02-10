@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { v4 as uuid } from 'uuid';
 import prisma from '../config/database';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { fetchGeniusLyrics } from '../services/genius-api';
 
 const router = Router();
 
@@ -40,6 +41,33 @@ router.get('/:songId/lyrics', requireAuth, async (req: Request, res: Response) =
           message: 'No timed lyrics yet. Raw lyrics from the database are available.',
         });
         return;
+      }
+
+      // Fallback: try Genius on demand for songs that still have no lyrics.
+      // This makes lyric fetch behavior immediate for users without requiring a separate cron job.
+      const songWithName = await prisma.song.findUnique({
+        where: { id: req.params.songId },
+        select: { id: true, name: true },
+      });
+
+      if (songWithName?.name) {
+        const geniusResult = await fetchGeniusLyrics(songWithName.name);
+        if (geniusResult) {
+          await prisma.song.update({
+            where: { id: songWithName.id },
+            data: {
+              rawLyrics: geniusResult.lyrics,
+              additionalInfo: `Lyrics source: Genius (${geniusResult.geniusUrl})`,
+            },
+          });
+
+          res.json({
+            canonical: null,
+            rawLyrics: geniusResult.lyrics,
+            message: 'No timed lyrics yet. Raw lyrics were fetched from Genius.',
+          });
+          return;
+        }
       }
 
       res.json({ canonical: null, rawLyrics: null });

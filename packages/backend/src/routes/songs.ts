@@ -349,10 +349,19 @@ router.get(
         audioResponse = await api.fetchAudioStream(song.filePath, rangeHeader);
       } catch (err) {
         console.error(`Audio proxy failed for ${song.id} (path: ${song.filePath}):`, err);
-        await prisma.song.update({
-          where: { id: song.id },
-          data: { isAvailable: false, lastHealthCheck: new Date() },
-        }).catch(() => {});
+
+        const upstreamStatus = typeof (err as { status?: unknown })?.status === 'number'
+          ? (err as { status: number }).status
+          : null;
+
+        // Only mark track unavailable for definite upstream missing/removed states.
+        if (upstreamStatus === 404 || upstreamStatus === 410) {
+          await prisma.song.update({
+            where: { id: song.id },
+            data: { isAvailable: false, lastHealthCheck: new Date() },
+          }).catch(() => {});
+        }
+
         res.status(502).json({ error: 'Audio source is currently unavailable' });
         return;
       }

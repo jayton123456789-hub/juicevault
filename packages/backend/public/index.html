@@ -243,9 +243,126 @@ a { color: var(--purple-300); text-decoration: none; }
   z-index: 1000;
 }
 
+/* Netflix-style Scrolling Album Background */
 .auth-bg {
   position: absolute; inset: 0;
   overflow: hidden;
+  background: linear-gradient(135deg, #0a0a0f 0%, #1a1025 50%, #0f0a1a 100%);
+}
+
+.auth-bg::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: 
+    radial-gradient(ellipse at 20% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(236, 72, 153, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 40%, rgba(99, 102, 241, 0.08) 0%, transparent 40%);
+  z-index: 1;
+}
+
+.auth-bg::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, 
+    rgba(10, 10, 15, 0.3) 0%, 
+    rgba(10, 10, 15, 0.1) 50%,
+    rgba(10, 10, 15, 0.4) 100%);
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Scrolling Album Rows */
+.album-scroll-container {
+  position: absolute;
+  inset: -10%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transform: rotate(-5deg) scale(1.2);
+  z-index: 0;
+  opacity: 0.6;
+}
+
+.album-row {
+  display: flex;
+  gap: 20px;
+  width: fit-content;
+  animation: scroll-left 45s linear infinite;
+}
+
+.album-row:nth-child(even) {
+  animation: scroll-right 50s linear infinite;
+}
+
+.album-row:nth-child(3n) {
+  animation-duration: 55s;
+  animation-direction: reverse;
+}
+
+.album-row:nth-child(4n) {
+  animation-duration: 40s;
+}
+
+@keyframes scroll-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes scroll-right {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+.album-cover {
+  width: 180px;
+  height: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.album-cover:hover {
+  transform: scale(1.05) translateY(-5px);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.6),
+    0 0 30px rgba(139, 92, 246, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  z-index: 10;
+}
+
+.album-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.7) saturate(0.9);
+  transition: filter 0.3s ease;
+}
+
+.album-cover:hover img {
+  filter: brightness(0.9) saturate(1.1);
+}
+
+.album-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.6) 100%);
+  pointer-events: none;
+}
+
+/* Vignette overlay */
+.auth-vignette {
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at center, transparent 0%, rgba(10, 10, 15, 0.4) 70%, rgba(10, 10, 15, 0.9) 100%);
+  z-index: 2;
+  pointer-events: none;
 }
 
 .auth-orb {
@@ -284,160 +401,291 @@ a { color: var(--purple-300); text-decoration: none; }
 
 .auth-card {
   position: relative;
-  width: 100%; max-width: 420px;
-  padding: 48px 40px;
+  width: 100%; max-width: 440px;
+  padding: 52px 44px;
   margin: 20px;
-  background: rgba(15, 15, 24, 0.8);
-  backdrop-filter: blur(40px) saturate(1.5);
-  -webkit-backdrop-filter: blur(40px) saturate(1.5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
-  animation: scaleIn 0.6s var(--ease-out);
+  background: linear-gradient(135deg, 
+    rgba(20, 20, 30, 0.95) 0%, 
+    rgba(15, 15, 25, 0.98) 50%,
+    rgba(10, 10, 20, 0.95) 100%);
+  backdrop-filter: blur(60px) saturate(2);
+  -webkit-backdrop-filter: blur(60px) saturate(2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  box-shadow: 
+    0 25px 80px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(139, 92, 246, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  z-index: 10;
+  animation: scaleIn 0.8s var(--ease-out);
+  overflow: hidden;
 }
 
 .auth-card::before {
   content: '';
-  position: absolute; top: -1px; left: 20%; right: 20%;
+  position: absolute; top: 0; left: 0; right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--purple-400), transparent);
-  opacity: 0.5;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(139, 92, 246, 0.6) 20%, 
+    rgba(236, 72, 153, 0.6) 50%, 
+    rgba(139, 92, 246, 0.6) 80%, 
+    transparent 100%);
+  opacity: 0.8;
+  z-index: 2;
+}
+
+.auth-card::after {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    rgba(139, 92, 246, 0.03) 60deg,
+    transparent 120deg,
+    rgba(236, 72, 153, 0.03) 180deg,
+    transparent 240deg,
+    rgba(99, 102, 241, 0.03) 300deg,
+    transparent 360deg
+  );
+  animation: card-shimmer 10s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes card-shimmer {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .auth-brand {
   text-align: center;
-  margin-bottom: 36px;
+  margin-bottom: 40px;
+  position: relative;
+  z-index: 1;
 }
 .auth-brand .brand-icon {
-  font-size: 3rem;
-  margin-bottom: 8px;
+  font-size: 4rem;
+  margin-bottom: 12px;
   display: block;
-  animation: float 3s ease-in-out infinite;
+  animation: float 3s ease-in-out infinite, icon-glow 2s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.5));
+}
+@keyframes icon-glow {
+  0% { filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.4)); }
+  100% { filter: drop-shadow(0 0 30px rgba(236, 72, 153, 0.6)); }
 }
 .auth-brand h1 {
   font-family: var(--font-display);
-  font-size: 2rem;
-  font-weight: 800;
-  letter-spacing: -0.5px;
+  font-size: 2.5rem;
+  font-weight: 900;
+  letter-spacing: -1px;
+  margin-bottom: 8px;
 }
 .auth-brand h1 .brand-gradient {
-  background: linear-gradient(135deg, var(--purple-300), var(--pink), var(--purple-400));
+  background: linear-gradient(135deg, 
+    var(--purple-300) 0%, 
+    var(--pink) 25%, 
+    var(--purple-400) 50%, 
+    var(--pink) 75%, 
+    var(--purple-300) 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: gradientShift 4s ease infinite;
+  animation: gradientShift 3s ease infinite;
+  text-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
 }
 .auth-brand .brand-tag {
   color: var(--text-muted);
-  font-size: 0.8rem;
-  margin-top: 6px;
-  letter-spacing: 2px;
+  font-size: 0.75rem;
+  margin-top: 8px;
+  letter-spacing: 3px;
   text-transform: uppercase;
-  font-weight: 500;
+  font-weight: 600;
+  background: linear-gradient(90deg, var(--text-muted), var(--purple-300), var(--text-muted));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
 }
 
 .auth-tabs {
-  display: flex; gap: 4px;
-  margin-bottom: 28px;
-  background: var(--bg-deep);
-  border-radius: var(--radius-md);
-  padding: 4px;
-  border: 1px solid var(--border);
+  display: flex; gap: 6px;
+  margin-bottom: 32px;
+  background: rgba(20, 20, 30, 0.6);
+  border-radius: 16px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  z-index: 1;
 }
 .auth-tab {
   flex: 1;
-  padding: 10px 16px;
+  padding: 12px 18px;
   text-align: center;
-  border-radius: var(--radius-sm);
+  border-radius: 12px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   color: var(--text-muted);
   transition: all 0.3s var(--ease-out);
   border: none;
   background: none;
   position: relative;
+  overflow: hidden;
 }
-.auth-tab:hover { color: var(--text-secondary); }
+.auth-tab:hover { 
+  color: var(--text-secondary); 
+  background: rgba(255, 255, 255, 0.03);
+}
 .auth-tab.active {
-  background: var(--purple-800);
-  color: var(--text);
-  box-shadow: 0 2px 12px rgba(155,93,229,0.2);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.9), rgba(124, 58, 237, 0.9));
+  color: #fff;
+  box-shadow: 
+    0 4px 20px rgba(139, 92, 246, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .form-group {
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 .form-group label {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--text-secondary);
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   text-transform: uppercase;
+  transition: color 0.3s ease;
+}
+.form-group:focus-within label {
+  color: var(--purple-300);
 }
 .form-group input {
   width: 100%;
-  padding: 13px 16px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-size: 0.92rem;
+  padding: 15px 18px;
+  background: rgba(20, 20, 30, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  font-size: 0.95rem;
   outline: none;
   transition: all 0.3s var(--ease-out);
   color: var(--text);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 .form-group input:focus {
-  border-color: var(--purple-500);
-  box-shadow: 0 0 0 3px rgba(155,93,229,0.15);
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 
+    0 0 0 3px rgba(139, 92, 246, 0.15),
+    inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: rgba(25, 25, 40, 0.8);
 }
 .form-group input::placeholder { color: var(--text-faint); }
 
 .btn {
   width: 100%;
-  padding: 14px;
+  padding: 16px;
   border: none;
-  border-radius: var(--radius-md);
-  font-size: 0.92rem;
+  border-radius: 14px;
+  font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s var(--ease-out);
   position: relative;
   overflow: hidden;
+  letter-spacing: 0.5px;
+}
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s ease;
+}
+.btn:hover::before {
+  left: 100%;
 }
 .btn-primary {
-  background: linear-gradient(135deg, var(--purple-500), var(--purple-700));
+  background: linear-gradient(135deg, var(--purple-500) 0%, var(--purple-600) 50%, var(--pink) 100%);
+  background-size: 200% auto;
   color: #fff;
-  box-shadow: 0 4px 16px rgba(155,93,229,0.3);
+  box-shadow: 
+    0 4px 20px rgba(139, 92, 246, 0.4),
+    0 0 0 1px rgba(139, 92, 246, 0.2);
+  animation: button-gradient 3s ease infinite;
+}
+@keyframes button-gradient {
+  0%, 100% { background-position: 0% center; }
+  50% { background-position: 100% center; }
 }
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(155,93,229,0.4);
+  box-shadow: 
+    0 8px 30px rgba(139, 92, 246, 0.5),
+    0 0 0 1px rgba(139, 92, 246, 0.3);
 }
 .btn-primary:active { transform: translateY(0); }
-.btn-primary:disabled { opacity: 0.4; transform: none; cursor: not-allowed; }
+.btn-primary:disabled { 
+  opacity: 0.5; 
+  transform: none; 
+  cursor: not-allowed;
+  animation: none;
+  background: linear-gradient(135deg, var(--purple-700), var(--purple-800));
+}
 
 .auth-error {
-  color: var(--red);
+  color: #ff6b7a;
   font-size: 0.82rem;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
   text-align: center;
-  padding: 10px 14px;
-  background: rgba(255,71,87,0.08);
-  border: 1px solid rgba(255,71,87,0.15);
-  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  background: rgba(255, 71, 87, 0.1);
+  border: 1px solid rgba(255, 71, 87, 0.2);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  animation: shake 0.5s ease;
+  position: relative;
+  z-index: 1;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
   animation: fadeIn 0.3s;
 }
 
 .auth-footer {
   text-align: center;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
-  font-size: 0.78rem;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.75rem;
   color: var(--text-muted);
+  letter-spacing: 1px;
+  position: relative;
+  z-index: 1;
+}
+.auth-footer::before {
+  content: '999';
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--purple-400), var(--pink));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 4px;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -4955,6 +5203,101 @@ a { color: var(--purple-300); text-decoration: none; }
      ═══════════════════════════════════════════════════════ -->
 <div id="authScreen" class="auth-screen">
   <div class="auth-bg">
+    <!-- Netflix-style Scrolling Album Covers -->
+    <div class="album-scroll-container" id="albumScrollContainer">
+      <!-- Row 1 -->
+      <div class="album-row">
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b273f7db43292a6a7b21b7550644" alt="Goodbye & Good Riddance"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b27396b8e9dfcfb6b5c1760a93c7" alt="Death Race for Love"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2733e4eff52de21bb72a626b84d" alt="Legends Never Die"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b273e71c60af7c87ff8bca22987d" alt="Fighting Demons"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b273df28e5efdc7c8f0e9873f6d9" alt="The Party Never Ends"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b273c9690ec3849f1f2d576cb0c3" alt="WRLD on Drugs"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b273f7db43292a6a7b21b7550644" alt="Goodbye & Good Riddance"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b27396b8e9dfcfb6b5c1760a93c7" alt="Death Race for Love"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2733e4eff52de21bb72a626b84d" alt="Legends Never Die"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b273e71c60af7c87ff8bca22987d" alt="Fighting Demons"></div>
+      </div>
+      <!-- Row 2 -->
+      <div class="album-row">
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b27388708b3800e9574795b46def" alt="Lucid Dreams"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b27384c78f1e7c0e68257de70c27" alt="All Girls Are The Same"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b273a1c8c2cd5e4c5f2c0e6a7b8d" alt="Robbery"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2739b5e8e1c2b8c5f6a3d4e7f0a" alt="Hear Me Calling"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2732c5e1a4f6b8c9d0e2f5a1b3c" alt="Bandit"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2734d8e2c5f9a1b0e3d6c7f4a2b" alt="Graduation"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b27388708b3800e9574795b46def" alt="Lucid Dreams"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b27384c78f1e7c0e68257de70c27" alt="All Girls Are The Same"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b273a1c8c2cd5e4c5f2c0e6a7b8d" alt="Robbery"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2739b5e8e1c2b8c5f6a3d4e7f0a" alt="Hear Me Calling"></div>
+      </div>
+      <!-- Row 3 -->
+      <div class="album-row">
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2737c8d9e0f3a5b4c2d1e6f9a0b" alt="Come & Go"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2732f3e8c5d4a7b9c0e1f4a6d2e" alt="Wasted"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2735a4c7b9e3d2f8a0c4e7b1d5f" alt="Lean Wit Me"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2739e8f5c2a4d7b8e1f3c6a0d4e" alt="Empty"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2733b7a9c8e5f2d4a0b8c1e6f3a" alt="Armed and Dangerous"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2738e2c4f7a9d5b3e0c6a1f4d8e" alt="Fine China"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2737c8d9e0f3a5b4c2d1e6f9a0b" alt="Come & Go"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2732f3e8c5d4a7b9c0e1f4a6d2e" alt="Wasted"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2735a4c7b9e3d2f8a0c4e7b1d5f" alt="Lean Wit Me"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2739e8f5c2a4d7b8e1f3c6a0d4e" alt="Empty"></div>
+      </div>
+      <!-- Row 4 -->
+      <div class="album-row">
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2734c9e8b3f7d2a5c0e8b1f4a7d" alt="Smile"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2737e3f9c2a8b5d4f0a2c5e8b1d" alt="Godzilla"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2735f8e7c4a9d2b6f0a3c7e9b2d" alt="Righteous"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2732a4d7f9c5e8b3a1d6f0c4e8b" alt="Tell Me U Luv Me"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2738c5e2b7f9d4a3c0e6a1f5d8e" alt="Life's A Mess"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2733e7c8f5a9d2b4e0c8a2f6d1e" alt="Conversations"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2734c9e8b3f7d2a5c0e8b1f4a7d" alt="Smile"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2737e3f9c2a8b5d4f0a2c5e8b1d" alt="Godzilla"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2735f8e7c4a9d2b6f0a3c7e9b2d" alt="Righteous"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2732a4d7f9c5e8b3a1d6f0c4e8b" alt="Tell Me U Luv Me"></div>
+      </div>
+      <!-- Row 5 -->
+      <div class="album-row">
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2736d9c8e4f7a3b5c0e9f2d8a1c" alt="999"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2734f7a9c5e3b8d2f0a6c4e1b9d" alt="Black & White"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2739c6e7b5f4a8d3c0f9e2a5d7e" alt="I'll Be Fine"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2735a3e8c9f6b7d4e1b0c8f3a2d" alt="Candles"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2737f5c4e8a9d6b3f0c7a2e5b8d" alt="Used To"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2732e9f7c6a5b4d8f1a3c0b7e5d" alt="Scared of Love"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2736d9c8e4f7a3b5c0e9f2d8a1c" alt="999"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2734f7a9c5e3b8d2f0a6c4e1b9d" alt="Black & White"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2739c6e7b5f4a8d3c0f9e2a5d7e" alt="I'll Be Fine"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2735a3e8c9f6b7d4e1b0c8f3a2d" alt="Candles"></div>
+      </div>
+      <!-- Row 6 -->
+      <div class="album-row">
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2731d2e3f5c7a9b4e8f0c3d6a1b" alt="Who Shot Cupid"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2735c8f4e7a9d6b2f0c5a3e8d1e" alt="Ring Ring"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2739e4f8c7a5d3b9e1f6c0a4d8e" alt="Hurt Me"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2737a3d9f6c8e5b4a2f1d0c7e9b" alt="Fast"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2734b6e9f8c5a7d3e1f9c2a0d6e" alt="Maze"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2738d5c4f7e9a6b3c0f8a1d4e7b" alt="HeMotions"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2731d2e3f5c7a9b4e8f0c3d6a1b" alt="Who Shot Cupid"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2735c8f4e7a9d6b2f0c5a3e8d1e" alt="Ring Ring"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2739e4f8c7a5d3b9e1f6c0a4d8e" alt="Hurt Me"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2737a3d9f6c8e5b4a2f1d0c7e9b" alt="Fast"></div>
+      </div>
+      <!-- Row 7 -->
+      <div class="album-row">
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2733f7c5e8a9d4b6c1f8a0e3d7c" alt="Flaws and Sins"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2736a4e8d7f5c9b3e2a1f0d6c8e" alt="Feeling"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2739b5f3e7c8a6d4f0c2e9b1a5d" alt="Syphilis"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2734c8a7e5f9d3b6c0a1f8e2d5a" alt="Bejeweled"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2737e6f9c8a5d4b7e3c0f2a1d8e" alt="Make Believe"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2732b5f8e7c9a6d4f1a3c0e8d5a" alt="I Want It"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2733f7c5e8a9d4b6c1f8a0e3d7c" alt="Flaws and Sins"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2736a4e8d7f5c9b3e2a1f0d6c8e" alt="Feeling"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2739b5f3e7c8a6d4f0c2e9b1a5d" alt="Syphilis"></div>
+        <div class="album-cover"><img src="https://i.scdn.co/image/ab67616d0000b2734c8a7e5f9d3b6c0a1f8e2d5a" alt="Bejeweled"></div>
+      </div>
+    </div>
+    <div class="auth-vignette"></div>
     <div class="auth-orb auth-orb-1"></div>
     <div class="auth-orb auth-orb-2"></div>
     <div class="auth-orb auth-orb-3"></div>
@@ -5005,7 +5348,7 @@ a { color: var(--purple-300); text-decoration: none; }
     </form>
 
     <div class="auth-footer">
-      Dedicated to the legacy of Juice WRLD · 999
+      Dedicated to the legacy of Juice WRLD
     </div>
   </div>
 </div>
@@ -6067,60 +6410,81 @@ async function api(path, opts = {}) {
 }
 
 // ─── Auth ───────────────────────────────────────────────
-document.querySelectorAll('.auth-tab').forEach(t => {
-  t.addEventListener('click', () => {
-    document.querySelectorAll('.auth-tab').forEach(x => x.classList.remove('active'));
-    t.classList.add('active');
-    const tab = t.dataset.tab;
-    document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
-    document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
-    document.getElementById('authError').classList.add('hidden');
+// Initialize auth when DOM is ready
+function initAuth() {
+  // Auth tabs
+  document.querySelectorAll('.auth-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.auth-tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      const tab = t.dataset.tab;
+      document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+      document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
+      document.getElementById('authError').classList.add('hidden');
+    });
   });
-});
 
-document.getElementById('loginForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = document.getElementById('loginBtn');
-  btn.disabled = true; btn.textContent = 'Signing in...';
-  try {
-    const data = await api('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({
-        email: document.getElementById('loginEmail').value,
-        password: document.getElementById('loginPass').value
-      })
+  // Login form
+  const loginForm = document.getElementById('loginForm');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true; btn.textContent = 'Signing in...';
+      try {
+        const data = await api('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: document.getElementById('loginEmail').value,
+            password: document.getElementById('loginPass').value
+          })
+        });
+        token = data.token;
+        localStorage.setItem('jv_token', token);
+        user = data.user;
+        enterApp();
+      } catch (err) {
+        showAuthError(err.message || 'Login failed');
+      } finally { btn.disabled = false; btn.textContent = 'Sign In'; }
     });
-    token = data.token;
-    localStorage.setItem('jv_token', token);
-    user = data.user;
-    enterApp();
-  } catch (err) {
-    showAuthError(err.message);
-  } finally { btn.disabled = false; btn.textContent = 'Sign In'; }
-});
+  }
 
-document.getElementById('registerForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = document.getElementById('regBtn');
-  btn.disabled = true; btn.textContent = 'Creating...';
-  try {
-    const data = await api('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({
-        displayName: document.getElementById('regName').value,
-        email: document.getElementById('regEmail').value,
-        password: document.getElementById('regPass').value,
-        inviteCode: document.getElementById('regInvite').value
-      })
+  // Register form
+  const registerForm = document.getElementById('registerForm');
+  if (registerForm) {
+    registerForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const btn = document.getElementById('regBtn');
+      btn.disabled = true; btn.textContent = 'Creating...';
+      try {
+        const data = await api('/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({
+            displayName: document.getElementById('regName').value,
+            email: document.getElementById('regEmail').value,
+            password: document.getElementById('regPass').value,
+            inviteCode: document.getElementById('regInvite').value
+          })
+        });
+        token = data.token;
+        localStorage.setItem('jv_token', token);
+        user = data.user;
+        enterApp();
+      } catch (err) {
+        showAuthError(err.message || 'Registration failed');
+      } finally { btn.disabled = false; btn.textContent = 'Create Account'; }
     });
-    token = data.token;
-    localStorage.setItem('jv_token', token);
-    user = data.user;
-    enterApp();
-  } catch (err) {
-    showAuthError(err.message);
-  } finally { btn.disabled = false; btn.textContent = 'Create Account'; }
-});
+  }
+}
+
+// Initialize auth on DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAuth);
+} else {
+  initAuth();
+}
 
 function showAuthError(msg) {
   const el = document.getElementById('authError');

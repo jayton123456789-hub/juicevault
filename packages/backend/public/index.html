@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>JuiceVault</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧃</text></svg>">
+<link rel="icon" type="image/png" href="/assets/JuiceVaultIconLOGO.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -246,7 +246,8 @@ a { color: var(--purple-300); text-decoration: none; }
 .auth-bg {
   position: absolute; inset: 0;
   overflow: hidden;
-  background: linear-gradient(135deg, #0a0a0f 0%, #1a1025 50%, #0f0a1a 100%);
+  background: url('/assets/JuiceVaultBG.png') center/cover no-repeat;
+  background-color: #0a0a0f;
 }
 .auth-bg::before {
   content: '';
@@ -376,12 +377,14 @@ a { color: var(--purple-300); text-decoration: none; }
   margin-bottom: 36px;
 }
 .auth-brand .brand-icon {
-  font-size: 3.5rem;
-  margin-bottom: 10px;
+  width: 180px;
+  height: auto;
+  margin: 0 auto 10px;
   display: block;
   animation: float 3s ease-in-out infinite, iconGlow 2s ease-in-out infinite alternate;
   filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.4));
 }
+.auth-brand .brand-icon img { width: 100%; height: auto; }
 @keyframes iconGlow {
   0% { filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.3)); }
   100% { filter: drop-shadow(0 0 25px rgba(236, 72, 153, 0.5)); }
@@ -516,16 +519,18 @@ a { color: var(--purple-300); text-decoration: none; }
    APP SHELL
    ═══════════════════════════════════════════════════════ */
 
-.app { display: none; height: 100vh; flex-direction: column; }
+.app { display: none; height: 100vh; flex-direction: column; background: url('/assets/JuiceVaultBG.png') center/cover no-repeat fixed; background-color: var(--bg-deep); }
 .app.visible { display: flex; }
 
-.app-body { display: flex; flex: 1; overflow: hidden; }
+.app-body { display: flex; flex: 1; overflow: hidden; position: relative; }
 
 /* ═══ SIDEBAR ═══ */
 .sidebar {
   width: var(--sidebar-w);
-  background: var(--bg-raised);
-  border-right: 1px solid var(--border);
+  background: rgba(10, 10, 20, 0.82);
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  border-right: 1px solid rgba(155, 93, 229, 0.12);
   display: flex; flex-direction: column;
   flex-shrink: 0;
   transition: width 0.3s var(--ease-out);
@@ -537,7 +542,8 @@ a { color: var(--purple-300); text-decoration: none; }
   display: flex; align-items: center; gap: 12px;
   cursor: pointer;
 }
-.sidebar-brand .sb-icon { font-size: 1.6rem; }
+.sidebar-brand .sb-icon { width: 36px; height: 36px; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+.sidebar-brand .sb-icon img { width: 100%; height: 100%; object-fit: contain; }
 .sidebar-brand .sb-text {
   font-family: var(--font-display);
   font-weight: 800;
@@ -588,8 +594,10 @@ a { color: var(--purple-300); text-decoration: none; }
   color: var(--text);
 }
 .nav-item.active {
-  background: rgba(155,93,229,0.12);
+  background: linear-gradient(135deg, rgba(155,93,229,0.18), rgba(241,91,181,0.08));
   color: var(--purple-200);
+  border: 1px solid rgba(155,93,229,0.2);
+  box-shadow: 0 0 20px rgba(155,93,229,0.08);
 }
 .nav-item svg { width: 20px; height: 20px; flex-shrink: 0; opacity: 0.7; }
 .nav-item.active svg { opacity: 1; }
@@ -605,7 +613,7 @@ a { color: var(--purple-300); text-decoration: none; }
 
 .sidebar-user {
   padding: 16px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(155, 93, 229, 0.1);
   display: flex; align-items: center; gap: 10px;
 }
 .sidebar-user .su-avatar {
@@ -640,7 +648,9 @@ a { color: var(--purple-300); text-decoration: none; }
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--bg);
+  background: rgba(10, 10, 16, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   scroll-behavior: smooth;
 }
 
@@ -649,10 +659,10 @@ a { color: var(--purple-300); text-decoration: none; }
   height: var(--header-h);
   padding: 0 28px;
   display: flex; align-items: center; gap: 16px;
-  background: rgba(10,10,16,0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
+  background: rgba(10, 10, 20, 0.7);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border-bottom: 1px solid rgba(155, 93, 229, 0.1);
   z-index: 15;
 }
 
@@ -953,8 +963,10 @@ a { color: var(--purple-300); text-decoration: none; }
 }
 
 .song-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: rgba(19, 19, 32, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(155, 93, 229, 0.1);
   border-radius: var(--radius-lg);
   overflow: hidden;
   cursor: pointer;
@@ -964,16 +976,17 @@ a { color: var(--purple-300); text-decoration: none; }
 }
 .song-card:hover {
   transform: translateY(-4px);
-  border-color: var(--border-hover);
-  box-shadow: var(--shadow-md), var(--shadow-glow);
-  background: var(--bg-card-hover);
+  border-color: rgba(155, 93, 229, 0.25);
+  box-shadow: 0 8px 32px rgba(155, 93, 229, 0.15), 0 4px 16px rgba(0,0,0,0.3);
+  background: rgba(26, 26, 46, 0.8);
 }
 
 .song-card-art {
   aspect-ratio: 1;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--purple-900), var(--bg-card));
+  background: url('/assets/JuiceVaultAlbumCoverPlaceHolder.png') center/cover no-repeat;
+  background-color: var(--bg-card);
 }
 .song-card-art img {
   width: 100%; height: 100%;
@@ -986,7 +999,8 @@ a { color: var(--purple-300); text-decoration: none; }
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
   font-size: 2.5rem;
-  background: linear-gradient(135deg, var(--purple-900) 0%, var(--bg-card) 100%);
+  background: url('/assets/JuiceVaultAlbumCoverPlaceHolder.png') center/cover no-repeat;
+  background-color: var(--bg-card);
 }
 
 .song-card-play {
@@ -1074,7 +1088,8 @@ a { color: var(--purple-300); text-decoration: none; }
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.1rem;
-  background: linear-gradient(135deg, var(--purple-900), var(--bg-card));
+  background: url('/assets/JuiceVaultAlbumCoverPlaceHolder.png') center/cover no-repeat;
+  background-color: var(--bg-card);
 }
 
 .song-row-title {
@@ -1137,8 +1152,9 @@ a { color: var(--purple-300); text-decoration: none; }
   border-radius: var(--radius-lg);
   overflow: hidden;
   flex-shrink: 0;
-  box-shadow: var(--shadow-lg), 0 0 60px rgba(155,93,229,0.15);
-  background: linear-gradient(135deg, var(--purple-900), var(--bg-card));
+  box-shadow: var(--shadow-lg), 0 0 60px rgba(155,93,229,0.25);
+  background: url('/assets/JuiceVaultAlbumCoverPlaceHolder.png') center/cover no-repeat;
+  background-color: var(--bg-card);
 }
 .detail-art img { width: 100%; height: 100%; object-fit: cover; }
 .detail-art .art-ph {
@@ -1191,11 +1207,11 @@ a { color: var(--purple-300); text-decoration: none; }
   display: flex; align-items: center; gap: 8px;
 }
 .detail-btn-play {
-  background: var(--purple-500);
+  background: linear-gradient(135deg, var(--purple-500), var(--pink));
   color: #fff;
   box-shadow: 0 4px 20px rgba(155,93,229,0.35);
 }
-.detail-btn-play:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(155,93,229,0.45); }
+.detail-btn-play:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(155,93,229,0.5), 0 0 40px rgba(241,91,181,0.2); }
 .detail-btn-play svg { width: 18px; height: 18px; }
 .detail-btn-queue {
   background: var(--glass-hover);
@@ -1342,8 +1358,10 @@ a { color: var(--purple-300); text-decoration: none; }
 /* ═══ PLAYER BAR ═══ */
 .player {
   height: var(--player-h);
-  background: var(--bg-raised);
-  border-top: 1px solid var(--border);
+  background: rgba(10, 10, 20, 0.85);
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  border-top: 1px solid rgba(155, 93, 229, 0.15);
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
   align-items: center;
@@ -1369,7 +1387,8 @@ a { color: var(--purple-300); text-decoration: none; }
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.4rem;
-  background: linear-gradient(135deg, var(--purple-900), var(--bg-card));
+  background: url('/assets/JuiceVaultAlbumCoverPlaceHolder.png') center/cover no-repeat;
+  background-color: var(--bg-card);
 }
 .player-song-info { min-width: 0; }
 .player-song-name {
@@ -1406,11 +1425,12 @@ a { color: var(--purple-300); text-decoration: none; }
 
 .p-btn-play {
   width: 40px; height: 40px;
-  background: var(--text);
-  color: var(--bg-deep) !important;
+  background: linear-gradient(135deg, var(--purple-400), var(--pink));
+  color: #fff !important;
   border-radius: 50%;
+  box-shadow: 0 0 20px rgba(155, 93, 229, 0.3);
 }
-.p-btn-play:hover { transform: scale(1.06); background: #fff; }
+.p-btn-play:hover { transform: scale(1.06); background: linear-gradient(135deg, var(--purple-300), var(--pink)); box-shadow: 0 0 28px rgba(155, 93, 229, 0.45); }
 .p-btn-play svg { width: 18px; height: 18px; }
 
 .player-progress {
@@ -1437,13 +1457,13 @@ a { color: var(--purple-300); text-decoration: none; }
 .progress-bar:hover { height: 6px; }
 .progress-fill {
   height: 100%;
-  background: var(--purple-400);
+  background: linear-gradient(90deg, var(--purple-500), var(--purple-300), var(--pink));
   border-radius: 2px;
   width: 0%;
   position: relative;
   transition: background 0.2s;
 }
-.progress-bar:hover .progress-fill { background: var(--purple-300); }
+.progress-bar:hover .progress-fill { background: linear-gradient(90deg, var(--purple-400), var(--pink)); }
 .progress-fill::after {
   content: '';
   position: absolute;
@@ -1472,7 +1492,7 @@ a { color: var(--purple-300); text-decoration: none; }
 }
 .volume-fill {
   height: 100%;
-  background: var(--text-secondary);
+  background: linear-gradient(90deg, var(--purple-400), var(--purple-300));
   border-radius: 2px;
   width: 70%;
 }
@@ -5216,8 +5236,7 @@ a { color: var(--purple-300); text-decoration: none; }
   </div>
   <div class="auth-card">
     <div class="auth-brand">
-      <span class="brand-icon">🧃</span>
-      <h1><span class="brand-gradient">JuiceVault</span></h1>
+      <span class="brand-icon"><img src="/assets/JuiceVaultLOGO.png" alt="JuiceVault"></span>
       <p class="brand-tag">The Vault · 999 Forever</p>
     </div>
     <div class="auth-tabs">
@@ -5273,7 +5292,7 @@ a { color: var(--purple-300); text-decoration: none; }
     <!-- ═══ SIDEBAR ═══ -->
     <aside class="sidebar">
       <div class="sidebar-brand" onclick="navigateTo('home')">
-        <span class="sb-icon">🧃</span>
+        <span class="sb-icon"><img src="/assets/JuiceVaultIconLOGO.png" alt="JuiceVault"></span>
         <span class="sb-text"><span>JuiceVault</span></span>
       </div>
 
@@ -5659,7 +5678,7 @@ a { color: var(--purple-300); text-decoration: none; }
   <div class="player" id="playerBar">
     <div class="player-left">
       <div class="player-art" onclick="currentSong && navigateToDetail(currentSong.id)" style="position:relative;">
-        <div class="pa-ph">🎵</div>
+        <div class="pa-ph"></div>
         <button class="mini-player-like" id="miniPlayerLikeBtn" onclick="event.stopPropagation();toggleCurrentSongLike(this)" title="Like current song (L)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
         </button>
@@ -8298,10 +8317,10 @@ function artSrc(s) {
   return '';
 }
 function artTag(s, fallback) {
-  fallback = fallback || '🎵';
+  const placeholderSrc = '/assets/JuiceVaultAlbumCoverPlaceHolder.png';
   const src = artSrc(s);
-  if (!src) return fallback;
-  return `<img src="${src}" onerror="this.parentElement.innerHTML='${fallback}'" loading="lazy">`;
+  if (!src) return `<img src="${placeholderSrc}" loading="lazy">`;
+  return `<img src="${src}" onerror="this.src='${placeholderSrc}'" loading="lazy">`;
 }
 
 function fmtTime(s) {

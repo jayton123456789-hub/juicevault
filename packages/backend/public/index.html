@@ -6797,50 +6797,11 @@ function updateFsUpNext() {
   }
 }
 
-function toggleShuffle() {
-  shuffleOn = !shuffleOn;
-  document.getElementById('btnShuffle').classList.toggle('active', shuffleOn);
-  toast(shuffleOn ? 'Shuffle on' : 'Shuffle off', 'info');
-}
-
-function toggleRepeat() {
-  repeatMode = (repeatMode + 1) % 3;
-  const btn = document.getElementById('btnRepeat');
-  btn.classList.toggle('active', repeatMode > 0);
-  btn.style.position = 'relative';
-  if (repeatMode === 2) btn.innerHTML += '<span style="position:absolute;top:-2px;right:-2px;font-size:0.6rem;font-weight:800">1</span>';
-  else btn.querySelector('span:last-child')?.remove();
-  toast(['Repeat off', 'Repeat all', 'Repeat one'][repeatMode], 'info');
-}
-
 function toggleRadio() {
   radioMode = !radioMode;
   document.getElementById('btnRadio').classList.toggle('active', radioMode);
   toast(radioMode ? 'Radio mode on' : 'Radio mode off', 'info');
   if (radioMode) prefetchRadio();
-}
-
-function toggleMute() {
-  if (audio.volume > 0) {
-    previousVolume = audio.volume;
-    audio.volume = 0;
-  } else {
-    audio.volume = previousVolume;
-  }
-  volume = audio.volume;
-  updateVolumeUI();
-}
-
-function setVolume(e) {
-  const bar = document.getElementById('volumeBar');
-  const rect = bar.getBoundingClientRect();
-  volume = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-  audio.volume = volume;
-  updateVolumeUI();
-}
-
-function updateVolumeUI() {
-  document.getElementById('volumeFill').style.width = `${audio.volume * 100}%`;
 }
 
 function seekAudio(e) {
@@ -7544,6 +7505,8 @@ function toggleMute() {
   } else {
     audio.volume = previousVolume;
   }
+  volume = audio.volume;
+  updateVolumeUI();
   updateLyricsVolumeUI();
 }
 
@@ -9714,7 +9677,7 @@ restoreEQ();
 // State for playlist enhancements
 let currentPlaylistId = null;
 let currentPlaylistData = null;
-let selectedSongs = new Set();
+selectedSongs = new Set();
 let dragSrcEl = null;
 let draggedSongId = null;
 let editingPlaylistId = null;
@@ -10334,7 +10297,7 @@ function sortPlaylistSongs(sortBy) {
 }
 
 // 16. BULK SELECT
-function toggleSongSelection(songId) {
+function togglePlaylistSongSelection(songId) {
   const row = document.querySelector(`[data-song-id="${songId}"]`);
   if (selectedSongs.has(songId)) {
     selectedSongs.delete(songId);
@@ -10906,7 +10869,7 @@ function createPlaylistSongRow(s, i) {
   
   row.innerHTML = `
     <div style="display: flex; align-items: center; gap: 8px;">
-      <input type="checkbox" class="song-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSongSelection('${s.id}')">
+      <input type="checkbox" class="song-checkbox" ${isSelected ? 'checked' : ''} onchange="togglePlaylistSongSelection('${s.id}')">
       <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
     </div>
     <div class="song-row-art">${imgHtml}</div>

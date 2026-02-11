@@ -329,91 +329,6 @@ router.get('/:id/lyrics/:lyricsId', requireAuth, async (req: Request, res: Respo
   }
 });
 
-// ─── GET /api/songs/:id/test-stream ─────────────────────
-// Lightweight endpoint to check if a song's audio source is accessible
-// without actually streaming the audio data
-router.get('/:id/test-stream', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const song = await prisma.song.findUnique({
-      where: { id: req.params.id },
-      select: { id: true, filePath: true, isAvailable: true, name: true },
-    });
-
-    if (!song) {
-      res.status(404).json({ error: 'Song not found' });
-      return;
-    }
-
-    if (!song.filePath) {
-      res.status(404).json({ error: 'No audio file available', hasFilePath: false });
-      return;
-    }
-
-    const api = getJuiceApi();
-    
-    // Try to fetch just the headers to verify the file exists
-    try {
-      const testResponse = await api.fetchAudioStream(song.filePath, 'bytes=0-0');
-      
-      // Verify we got a valid audio content type
-      const contentType = testResponse.headers.get('content-type');
-      const isAudio = contentType && (
-        contentType.startsWith('audio/') || 
-        contentType === 'application/octet-stream' ||
-        contentType === 'binary/octet-stream'
-      );
-      
-      if (!isAudio && testResponse.status !== 206 && testResponse.status !== 200) {
-        res.status(502).json({ 
-          error: 'Source returned invalid response',
-          status: testResponse.status,
-          contentType
-        });
-        return;
-      }
-      
-      // Stream is accessible
-      res.json({ 
-        success: true, 
-        hasFilePath: true,
-        isAvailable: true,
-        contentType: contentType || 'unknown'
-      });
-      
-      // Update last health check since stream is working
-      await prisma.song.update({
-        where: { id: song.id },
-        data: { lastHealthCheck: new Date(), isAvailable: true },
-      }).catch(() => {});
-      
-    } catch (err) {
-      console.error(`Test stream failed for ${song.id}:`, err);
-      
-      const upstreamStatus = typeof (err as { status?: unknown })?.status === 'number'
-        ? (err as { status: number }).status
-        : null;
-      
-      // Mark unavailable for 404/410
-      if (upstreamStatus === 404 || upstreamStatus === 410) {
-        await prisma.song.update({
-          where: { id: song.id },
-          data: { isAvailable: false, lastHealthCheck: new Date() },
-        }).catch(() => {});
-      }
-      
-      res.status(502).json({ 
-        error: 'Audio source unavailable',
-        upstreamStatus,
-        hasFilePath: true,
-        isAvailable: false
-      });
-    }
-  } catch (err) {
-    console.error('Test stream error:', err);
-    res.status(500).json({ error: 'Test failed' });
-  }
-});
-
 // ─── GET /api/songs/:id/stream ──────────────────────────
 router.get(
   '/:id/stream',
@@ -423,7 +338,7 @@ router.get(
     try {
       const song = await prisma.song.findUnique({
         where: { id: req.params.id },
-        select: { id: true, filePath: true, isAvailable: true, externalId: true, name: true },
+        select: { id: true, filePath: true, isAvailable: true, externalId: true },
       });
 
       if (!song) {
@@ -432,12 +347,12 @@ router.get(
       }
 
       if (!song.filePath) {
-        res.status(404).json({ error: 'This song has no playable audio file', code: 'NO_FILE_PATH' });
+        res.status(404).json({ error: 'This song has no playable audio file' });
         return;
       }
 
       if (!song.isAvailable) {
-        res.status(410).json({ error: 'This track is currently unavailable', code: 'NOT_AVAILABLE' });
+        res.status(410).json({ error: 'This track is currently unavailable' });
         return;
       }
 
@@ -462,32 +377,7 @@ router.get(
           }).catch(() => {});
         }
 
-        // Return error as JSON (frontend audio element will handle this as source error)
-        res.status(502).json({ 
-          error: 'Audio source is currently unavailable',
-          code: 'UPSTREAM_ERROR',
-          upstreamStatus
-        });
-        return;
-      }
-
-      // Verify we have a valid audio response before streaming
-      const contentType = audioResponse.headers.get('content-type');
-      const isValidAudio = contentType && (
-        contentType.startsWith('audio/') ||
-        contentType === 'application/octet-stream' ||
-        contentType === 'binary/octet-stream' ||
-        contentType === 'video/mp4' || // Some MP3s are served as video/mp4
-        contentType === 'audio/mpeg'
-      );
-
-      if (!isValidAudio && audioResponse.status !== 206) {
-        console.error(`Invalid content type for ${song.id}:`, contentType);
-        res.status(502).json({ 
-          error: 'Invalid audio source',
-          code: 'INVALID_CONTENT_TYPE',
-          contentType
-        });
+        res.status(502).json({ error: 'Audio source is currently unavailable' });
         return;
       }
 
@@ -527,7 +417,7 @@ router.get(
 
     } catch (err) {
       console.error('Stream error:', err);
-      if (!res.headersSent) res.status(500).json({ error: 'Streaming error', code: 'INTERNAL_ERROR' });
+      if (!res.headersSent) res.status(500).json({ error: 'Streaming error' });
     }
   }
 );

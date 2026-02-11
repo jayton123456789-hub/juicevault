@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Select-String -Pattern \"loginForm|registerForm|addEventListener.*submit\" -Context 3,3)",
+      "Bash(Select-Object -First 50)",
+      "Bash(Select-Object -First 5)",
+      "Bash(powershell -Command \"cd C:\\\\Users\\\\jayto\\\\Desktop\\\\juicevault; git show 5fb6c2d:packages/backend/public/index.html | Out-File -FilePath C:\\\\Users\\\\jayto\\\\Desktop\\\\working.html -Encoding utf8\")",
+      "Bash(powershell -Command \"cd C:\\\\Users\\\\jayto\\\\Desktop\\\\juicevault; Select-String -Path ''packages\\\\backend\\\\public\\\\index.html'' -Pattern ''^function\\\\s+\\\\w+|^async function\\\\s+\\\\w+'' | Select-Object -First 60\")",
+      "Bash(powershell -Command:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}

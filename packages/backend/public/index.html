@@ -8516,8 +8516,8 @@ function artSrc(s) {
 function artTag(s, fallback) {
   const placeholderSrc = '/assets/JuiceVaultAlbumCoverPlaceHolder.png';
   const src = artSrc(s);
-  if (!src) return `<img src="${placeholderSrc}" loading="lazy">`;
-  return `<img src="${src}" onerror="this.src='${placeholderSrc}'" loading="lazy">`;
+  if (!src) return `<img src="${placeholderSrc}" loading="lazy" onload="this.classList.add('loaded')">`;
+  return `<img src="${src}" onerror="this.src='${placeholderSrc}'" loading="lazy" onload="this.classList.add('loaded')">`;
 }
 
 function fmtTime(s) {

@@ -11656,6 +11656,43 @@ audio.addEventListener('loadedmetadata', () => {
   updateProgressBar();
 });
 
+// 4. Image fade-in handler - adds 'loaded' class when images finish loading
+// This enables the CSS fade-in effect for grid view cover art
+document.addEventListener('DOMContentLoaded', () => {
+  // Handle images that are already in the DOM
+  document.querySelectorAll('.song-card-art img').forEach(img => {
+    if (img.complete) {
+      img.classList.add('loaded');
+    } else {
+      img.addEventListener('load', () => img.classList.add('loaded'));
+      img.addEventListener('error', () => img.classList.add('loaded')); // Show placeholder on error
+    }
+  });
+  
+  // Handle dynamically added images (for infinite scroll)
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const imgs = node.matches?.('.song-card-art img') 
+            ? [node] 
+            : node.querySelectorAll?.('.song-card-art img') || [];
+          imgs.forEach(img => {
+            if (img.complete) {
+              img.classList.add('loaded');
+            } else {
+              img.addEventListener('load', () => img.classList.add('loaded'));
+              img.addEventListener('error', () => img.classList.add('loaded'));
+            }
+          });
+        }
+      });
+    });
+  });
+  
+  observer.observe(document.body, { childList: true, subtree: true });
+});
+
 
 // === NEW FEATURES FROM MEGA UPDATE ===
 

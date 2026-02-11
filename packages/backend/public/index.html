@@ -2984,8 +2984,8 @@ a { color: var(--purple-300); text-decoration: none; }
   font-weight: 700;
   line-height: var(--lyrics-line-height, 1.7);
   text-align: var(--lyrics-align, center);
-  padding: 10px 20px;
-  margin: var(--lyrics-spacing, 4px) 0;
+  padding: 14px 20px;
+  margin: var(--lyrics-spacing, 12px) 0;
   border-radius: 12px;
   opacity: 0.12;
   cursor: pointer;
@@ -4954,6 +4954,177 @@ a { color: var(--purple-300); text-decoration: none; }
 }
 .sca-btn:hover { background: rgba(0,0,0,0.8); transform: scale(1.1); }
 .sca-btn.liked { color: var(--pink); }
+
+/* ===== 60 IMPROVEMENTS CSS ADDITIONS ===== */
+
+/* 1. Toast stacking fix */
+.toast-container:has(.toast:nth-child(4)) .toast:nth-child(n+4) { display: none; }
+
+/* 2. Search clear button */
+.search-box .search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+.search-box .search-clear:hover { color: var(--text); background: var(--glass-hover); }
+
+/* 3. Smooth progress transitions */
+.progress-fill { transition: width 0.1s linear, background 0.2s; }
+
+/* 4. Volume icon muted state */
+.volume-icon-muted { opacity: 0.5; }
+
+/* 5. Sidebar active indicator */
+.nav-item { position: relative; }
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background: var(--purple-400);
+  border-radius: 0 2px 2px 0;
+}
+
+/* 7-8. Enhanced shuffle/repeat indicators */
+.p-btn.shuffle-active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background: var(--purple-400);
+  border-radius: 50%;
+}
+.p-btn.repeat-one::after {
+  content: '1';
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  font-size: 0.5rem;
+  font-weight: 800;
+  background: var(--purple-400);
+  color: #fff;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 9-10. Image loading states */
+.song-card-art img { opacity: 0; transition: opacity 0.3s; }
+.song-card-art img.loaded { opacity: 1; }
+
+/* 11. Mobile modal fix */
+@media (max-width: 600px) {
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  .modal-box { max-width: 100%; border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+}
+
+/* 15. Mobile sidebar overlay */
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 19; }
+.sidebar-overlay.open { display: block; }
+
+/* 21. Skeleton loading */
+.skeleton-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.skeleton-art { aspect-ratio: 1; background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%); background-size: 400% 100%; animation: shimmer 1.5s ease-in-out infinite; }
+.skeleton-text { height: 12px; background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%); background-size: 400% 100%; animation: shimmer 1.5s ease-in-out infinite; border-radius: 4px; margin: 8px 14px; }
+
+/* 22. Page transitions */
+.page { opacity: 0; transform: translateY(10px); transition: opacity 0.3s var(--ease-out), transform 0.3s var(--ease-out); display: none; }
+.page.active { opacity: 1; transform: translateY(0); display: block; }
+
+/* 23. Empty states with illustration */
+.empty-state-illustration { width: 120px; height: 120px; margin: 0 auto 20px; background: linear-gradient(135deg, var(--purple-900), var(--bg-card)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3rem; animation: float 3s ease-in-out infinite; }
+
+/* 24. Tooltips */
+.tooltip { position: relative; }
+.tooltip::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) scale(0.9); padding: 6px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600; color: var(--text); white-space: nowrap; opacity: 0; pointer-events: none; transition: all 0.2s var(--ease-out); z-index: 1000; }
+.tooltip:hover::after { opacity: 1; transform: translateX(-50%) scale(1); }
+
+/* 25. Context menu */
+.context-menu { position: fixed; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px 0; min-width: 180px; z-index: 1000; box-shadow: var(--shadow-lg); display: none; }
+.context-menu.open { display: block; }
+.context-menu-item { padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.85rem; transition: background 0.15s; }
+.context-menu-item:hover { background: var(--glass-hover); }
+.context-menu-divider { height: 1px; background: var(--border); margin: 6px 0; }
+
+/* 26. Pull to refresh */
+.ptr-indicator { position: absolute; top: -60px; left: 50%; transform: translateX(-50%); width: 40px; height: 40px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+.ptr-indicator.releasing { transform: translateX(-50%) rotate(360deg); }
+
+/* 30. Focus indicators */
+*:focus-visible { outline: 2px solid var(--purple-400); outline-offset: 2px; }
+
+/* 32. Error boundary */
+.error-boundary { text-align: center; padding: 40px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 20px; }
+.error-boundary h3 { color: var(--red); margin-bottom: 12px; }
+.error-boundary button { margin-top: 16px; padding: 10px 20px; background: var(--purple-700); border: none; border-radius: var(--radius-md); color: #fff; font-weight: 600; cursor: pointer; }
+
+/* 33. Offline banner */
+.offline-banner { position: fixed; top: 0; left: 0; right: 0; background: var(--orange); color: #000; padding: 8px 16px; text-align: center; font-weight: 600; font-size: 0.85rem; z-index: 1000; transform: translateY(-100%); transition: transform 0.3s var(--ease-out); }
+.offline-banner.visible { transform: translateY(0); }
+
+/* 34. Update banner */
+.update-banner { position: fixed; top: 0; left: 0; right: 0; background: var(--purple-600); color: #fff; padding: 12px 16px; text-align: center; font-weight: 600; font-size: 0.85rem; z-index: 1000; transform: translateY(-100%); transition: transform 0.3s var(--ease-out); display: flex; align-items: center; justify-content: center; gap: 16px; }
+.update-banner.visible { transform: translateY(0); }
+.update-banner button { padding: 6px 14px; background: #fff; color: var(--purple-600); border: none; border-radius: var(--radius-full); font-weight: 700; font-size: 0.75rem; cursor: pointer; }
+
+/* 35. Shortcuts modal */
+.shortcuts-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 150; display: none; align-items: center; justify-content: center; }
+.shortcuts-modal.open { display: flex; }
+.shortcuts-content { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 32px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+.shortcuts-content h2 { font-family: var(--font-display); margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
+.shortcuts-close { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; font-size: 1.2rem; }
+.shortcuts-grid { display: grid; gap: 12px; }
+.shortcut-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.shortcut-row:last-child { border-bottom: none; }
+.shortcut-keys { display: flex; gap: 6px; }
+.shortcut-key { padding: 4px 10px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; }
+
+/* 38. Continue listening banner */
+.continue-banner { background: linear-gradient(135deg, rgba(155,93,229,0.15), rgba(241,91,181,0.1)); border: 1px solid rgba(155,93,229,0.2); border-radius: var(--radius-lg); padding: 16px 20px; display: flex; align-items: center; gap: 16px; margin-bottom: 24px; cursor: pointer; transition: all 0.2s; }
+.continue-banner:hover { background: linear-gradient(135deg, rgba(155,93,229,0.2), rgba(241,91,181,0.15)); }
+.continue-banner-art { width: 60px; height: 60px; border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-card); flex-shrink: 0; }
+.continue-banner-info { flex: 1; }
+.continue-banner-label { font-size: 0.7rem; color: var(--purple-300); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+.continue-banner-song { font-weight: 700; margin-top: 4px; }
+.continue-banner-artist { font-size: 0.8rem; color: var(--text-muted); }
+.continue-banner-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--purple-500); border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; flex-shrink: 0; }
+.continue-banner-btn:hover { transform: scale(1.05); }
+
+/* Mobile responsive improvements */
+@media (max-width: 900px) {
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); width: 260px; z-index: 20; }
+  .sidebar.open { transform: translateX(0); }
+  .mobile-menu-btn { display: flex !important; }
+}
+
+/* Mobile menu button */
+.mobile-menu-btn { display: none; background: none; border: none; color: var(--text); cursor: pointer; padding: 8px; border-radius: var(--radius-sm); }
+.mobile-menu-btn:hover { background: var(--glass-hover); }
+
+/* Sync pulse animation */
+@keyframes syncPulse { 0%,100% { opacity:1;box-shadow:0 0 0 0 rgba(46,213,115,0.4); } 50% { opacity:0.8;box-shadow:0 0 0 8px rgba(46,213,115,0); } }
+.sync-active { animation:syncPulse 1.5s infinite; }
 
 </style>
 </head>
@@ -7784,184 +7955,6 @@ async function loadAdmin() {
         : 0;
 
       sectionsHtml += `
-        <style>
-          @keyframes syncPulse { 0%,100% { opacity:1;box-shadow:0 0 0 0 rgba(46,213,115,0.4); } 50% { opacity:0.8;box-shadow:0 0 0 8px rgba(46,213,115,0); } }
-          .sync-active { animation:syncPulse 1.5s infinite; }
-        
-/* ===== 60 IMPROVEMENTS CSS ADDITIONS ===== */
-
-/* 1. Toast stacking fix */
-.toast-container:has(.toast:nth-child(4)) .toast:nth-child(n+4) { display: none; }
-
-/* 2. Search clear button */
-.search-box .search-clear {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 50%;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-}
-.search-box .search-clear:hover { color: var(--text); background: var(--glass-hover); }
-
-/* 3. Smooth progress transitions */
-.progress-fill { transition: width 0.1s linear, background 0.2s; }
-
-/* 4. Volume icon muted state */
-.volume-icon-muted { opacity: 0.5; }
-
-/* 5. Sidebar active indicator */
-.nav-item { position: relative; }
-.nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 20px;
-  background: var(--purple-400);
-  border-radius: 0 2px 2px 0;
-}
-
-/* 7-8. Enhanced shuffle/repeat indicators */
-.p-btn.shuffle-active::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  background: var(--purple-400);
-  border-radius: 50%;
-}
-.p-btn.repeat-one::after {
-  content: '1';
-  position: absolute;
-  bottom: -4px;
-  right: -4px;
-  font-size: 0.5rem;
-  font-weight: 800;
-  background: var(--purple-400);
-  color: #fff;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* 9-10. Image loading states */
-.song-card-art img { opacity: 0; transition: opacity 0.3s; }
-.song-card-art img.loaded { opacity: 1; }
-
-/* 11. Mobile modal fix */
-@media (max-width: 600px) {
-  .modal-overlay { align-items: flex-end; padding: 0; }
-  .modal-box { max-width: 100%; border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
-}
-
-/* 15. Mobile sidebar overlay */
-.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 19; }
-.sidebar-overlay.open { display: block; }
-
-/* 21. Skeleton loading */
-.skeleton-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
-.skeleton-art { aspect-ratio: 1; background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%); background-size: 400% 100%; animation: shimmer 1.5s ease-in-out infinite; }
-.skeleton-text { height: 12px; background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%); background-size: 400% 100%; animation: shimmer 1.5s ease-in-out infinite; border-radius: 4px; margin: 8px 14px; }
-
-/* 22. Page transitions */
-.page { opacity: 0; transform: translateY(10px); transition: opacity 0.3s var(--ease-out), transform 0.3s var(--ease-out); display: none; }
-.page.active { opacity: 1; transform: translateY(0); display: block; }
-
-/* 23. Empty states with illustration */
-.empty-state-illustration { width: 120px; height: 120px; margin: 0 auto 20px; background: linear-gradient(135deg, var(--purple-900), var(--bg-card)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3rem; animation: float 3s ease-in-out infinite; }
-
-/* 24. Tooltips */
-.tooltip { position: relative; }
-.tooltip::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) scale(0.9); padding: 6px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 600; color: var(--text); white-space: nowrap; opacity: 0; pointer-events: none; transition: all 0.2s var(--ease-out); z-index: 1000; }
-.tooltip:hover::after { opacity: 1; transform: translateX(-50%) scale(1); }
-
-/* 25. Context menu */
-.context-menu { position: fixed; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px 0; min-width: 180px; z-index: 1000; box-shadow: var(--shadow-lg); display: none; }
-.context-menu.open { display: block; }
-.context-menu-item { padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.85rem; transition: background 0.15s; }
-.context-menu-item:hover { background: var(--glass-hover); }
-.context-menu-divider { height: 1px; background: var(--border); margin: 6px 0; }
-
-/* 26. Pull to refresh */
-.ptr-indicator { position: absolute; top: -60px; left: 50%; transform: translateX(-50%); width: 40px; height: 40px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
-.ptr-indicator.releasing { transform: translateX(-50%) rotate(360deg); }
-
-/* 30. Focus indicators */
-*:focus-visible { outline: 2px solid var(--purple-400); outline-offset: 2px; }
-
-/* 32. Error boundary */
-.error-boundary { text-align: center; padding: 40px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 20px; }
-.error-boundary h3 { color: var(--red); margin-bottom: 12px; }
-.error-boundary button { margin-top: 16px; padding: 10px 20px; background: var(--purple-700); border: none; border-radius: var(--radius-md); color: #fff; font-weight: 600; cursor: pointer; }
-
-/* 33. Offline banner */
-.offline-banner { position: fixed; top: 0; left: 0; right: 0; background: var(--orange); color: #000; padding: 8px 16px; text-align: center; font-weight: 600; font-size: 0.85rem; z-index: 1000; transform: translateY(-100%); transition: transform 0.3s var(--ease-out); }
-.offline-banner.visible { transform: translateY(0); }
-
-/* 34. Update banner */
-.update-banner { position: fixed; top: 0; left: 0; right: 0; background: var(--purple-600); color: #fff; padding: 12px 16px; text-align: center; font-weight: 600; font-size: 0.85rem; z-index: 1000; transform: translateY(-100%); transition: transform 0.3s var(--ease-out); display: flex; align-items: center; justify-content: center; gap: 16px; }
-.update-banner.visible { transform: translateY(0); }
-.update-banner button { padding: 6px 14px; background: #fff; color: var(--purple-600); border: none; border-radius: var(--radius-full); font-weight: 700; font-size: 0.75rem; cursor: pointer; }
-
-/* 35. Shortcuts modal */
-.shortcuts-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 150; display: none; align-items: center; justify-content: center; }
-.shortcuts-modal.open { display: flex; }
-.shortcuts-content { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 32px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
-.shortcuts-content h2 { font-family: var(--font-display); margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
-.shortcuts-close { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; font-size: 1.2rem; }
-.shortcuts-grid { display: grid; gap: 12px; }
-.shortcut-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
-.shortcut-row:last-child { border-bottom: none; }
-.shortcut-keys { display: flex; gap: 6px; }
-.shortcut-key { padding: 4px 10px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; }
-
-/* 38. Continue listening banner */
-.continue-banner { background: linear-gradient(135deg, rgba(155,93,229,0.15), rgba(241,91,181,0.1)); border: 1px solid rgba(155,93,229,0.2); border-radius: var(--radius-lg); padding: 16px 20px; display: flex; align-items: center; gap: 16px; margin-bottom: 24px; cursor: pointer; transition: all 0.2s; }
-.continue-banner:hover { background: linear-gradient(135deg, rgba(155,93,229,0.2), rgba(241,91,181,0.15)); }
-.continue-banner-art { width: 60px; height: 60px; border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-card); flex-shrink: 0; }
-.continue-banner-info { flex: 1; }
-.continue-banner-label { font-size: 0.7rem; color: var(--purple-300); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
-.continue-banner-song { font-weight: 700; margin-top: 4px; }
-.continue-banner-artist { font-size: 0.8rem; color: var(--text-muted); }
-.continue-banner-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--purple-500); border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; flex-shrink: 0; }
-.continue-banner-btn:hover { transform: scale(1.05); }
-
-/* Mobile responsive improvements */
-@media (max-width: 900px) {
-  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); width: 260px; z-index: 20; }
-  .sidebar.open { transform: translateX(0); }
-  .mobile-menu-btn { display: flex !important; }
-}
-
-/* Song card action buttons */
-.song-card-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; z-index: 2; }
-.song-card:hover .song-card-actions { opacity: 1; }
-.sca-btn { width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; transition: all 0.15s; }
-.sca-btn:hover { background: rgba(0,0,0,0.8); transform: scale(1.1); }
-.sca-btn.liked { color: var(--pink); }
-
-/* Mobile menu button */
-.mobile-menu-btn { display: none; background: none; border: none; color: var(--text); cursor: pointer; padding: 8px; border-radius: var(--radius-sm); }
-.mobile-menu-btn:hover { background: var(--glass-hover); }
-</style>
         <div class="admin-section" style="background:linear-gradient(135deg,var(--bg-card) 0%,var(--bg-raised) 100%);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px;">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
             <div style="width:48px;height:48px;border-radius:var(--radius-md);background:linear-gradient(135deg,var(--purple-600),var(--pink));display:flex;align-items:center;justify-content:center;font-size:24px;">🎤</div>

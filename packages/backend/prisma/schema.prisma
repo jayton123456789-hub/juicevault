@@ -124,6 +124,7 @@ model Song {
   dateLeaked         String @default("") @map("date_leaked")
   leakType           String @default("") @map("leak_type")
   imageUrl           String @default("") @map("image_url")
+  localCoverPath     String @default("") @map("local_cover_path") // Local path like /covers/123.jpg
 
   // ── Snippets (from API, stored as JSON array) ─────────
   snippets           Json   @default("[]")
@@ -234,7 +235,12 @@ model BrokenTrackReport {
   songId     String   @map("song_id")
   reportedBy String   @map("reported_by")
   reason     String
-  status     String   @default("open")
+  status     String   @default("open")       // open, resolved, dismissed
+  apiUrl     String   @default("") @map("api_url")
+  proxyError String   @default("") @map("proxy_error")
+  errorLog   String   @default("") @map("error_log") @db.Text
+  resolvedAt DateTime? @map("resolved_at")
+  resolvedBy String?   @map("resolved_by")
   createdAt  DateTime @default(now()) @map("created_at")
 
   song     Song @relation(fields: [songId], references: [id], onDelete: Cascade)

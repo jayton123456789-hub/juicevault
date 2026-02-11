@@ -102,6 +102,7 @@ router.get('/by-external/:externalId', requireAuth, async (req: Request, res: Re
       length: song.length,
       durationMs: song.durationMs,
       imageUrl: song.imageUrl,
+      localCoverPath: song.localCoverPath,
       isAvailable: song.isAvailable,
       hasFilePath: !!song.filePath,
       playCount: song.playCount,
@@ -216,6 +217,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
         hasLyrics: s.lyricsVersions.length > 0 || s.rawLyrics.length > 0,
         hasRawLyrics: s.rawLyrics.length > 0,
         imageUrl: s.imageUrl,
+        localCoverPath: s.localCoverPath,
         leakType: s.leakType,
       })),
       pagination: {
@@ -283,6 +285,7 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
       dateLeaked: song.dateLeaked,
       leakType: song.leakType,
       imageUrl: song.imageUrl,
+      localCoverPath: song.localCoverPath,
       isAvailable: song.isAvailable,
       hasFilePath: !!song.filePath,
       playCount: song.playCount,
@@ -492,6 +495,80 @@ router.post('/:id/report', requireAuth, async (req: Request, res: Response) => {
       return;
     }
     console.error('Report error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /api/songs/:id/flag-broken ────────────────────
+// Enhanced broken-song flagging with detailed error info for dev dashboard
+const flagSchema = z.object({
+  reason: z.string().min(3).max(1000),
+  proxyError: z.string().max(2000).default(''),
+  errorLog: z.string().max(5000).default(''),
+});
+
+router.post('/:id/flag-broken', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const body = flagSchema.parse(req.body);
+    const song = await prisma.song.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true, filePath: true, externalId: true },
+    });
+
+    if (!song) {
+      res.status(404).json({ error: 'Song not found' });
+      return;
+    }
+
+    // Build the API URL for dev investigation
+    const API_BASE = process.env.JUICEWRLD_API_BASE || 'https://juicewrldapi.com/juicewrld';
+    const apiUrl = song.filePath
+      ? `${API_BASE}/files/download/?path=${encodeURIComponent(song.filePath)}`
+      : `${API_BASE}/songs/${song.externalId}/`;
+
+    // Check if already flagged (avoid duplicates within 24h)
+    const existing = await prisma.brokenTrackReport.findFirst({
+      where: {
+        songId: song.id,
+        status: 'open',
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    });
+
+    if (existing) {
+      // Append error info to existing report
+      await prisma.brokenTrackReport.update({
+        where: { id: existing.id },
+        data: {
+          errorLog: existing.errorLog
+            ? `${existing.errorLog}\n---\n[${new Date().toISOString()}] ${body.errorLog || body.proxyError}`
+            : body.errorLog || body.proxyError,
+        },
+      });
+      res.json({ report: { id: existing.id, status: 'open', updated: true } });
+      return;
+    }
+
+    const report = await prisma.brokenTrackReport.create({
+      data: {
+        songId: song.id,
+        reportedBy: req.user!.userId,
+        reason: body.reason,
+        apiUrl,
+        proxyError: body.proxyError,
+        errorLog: body.errorLog || `Flagged at ${new Date().toISOString()} — ${body.reason}`,
+      },
+    });
+
+    console.log(`[FLAG] Song "${song.name}" (${song.id}) flagged as broken by ${req.user!.email}`);
+
+    res.status(201).json({ report: { id: report.id, status: report.status } });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      return;
+    }
+    console.error('Flag broken error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

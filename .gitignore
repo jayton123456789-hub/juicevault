@@ -8,3 +8,9 @@ Thumbs.db
 coverage/
 .next/
 *.bak
+
+# Cover art images (downloaded at runtime, not committed)
+packages/backend/public/covers/*.jpg
+packages/backend/public/covers/*.png
+packages/backend/public/covers/*.webp
+!packages/backend/public/covers/.gitkeep

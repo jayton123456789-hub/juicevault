@@ -95,6 +95,37 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// ─── Public Cover Gallery (no auth — used by auth screen) ─
+
+import prisma from './config/database';
+
+app.get('/api/cover-gallery', async (_req, res) => {
+  try {
+    // Get random songs that have cover art (localCoverPath or imageUrl)
+    const songs = await prisma.song.findMany({
+      where: {
+        OR: [
+          { localCoverPath: { not: '' } },
+          { imageUrl: { not: '' } },
+        ],
+      },
+      select: { localCoverPath: true, imageUrl: true },
+      take: 200,
+    });
+
+    // Shuffle and pick up to 56 (7 rows x 8 covers)
+    const shuffled = songs.sort(() => Math.random() - 0.5).slice(0, 56);
+    const urls = shuffled.map(s => s.localCoverPath || s.imageUrl).filter(Boolean);
+
+    res.setHeader('Cache-Control', 'public, max-age=300'); // 5 min cache
+    res.json({ covers: urls });
+  } catch (err) {
+    console.error('Cover gallery error:', err);
+    // Fallback: empty array, frontend will use placeholders
+    res.json({ covers: [] });
+  }
+});
+
 // ─── Serve Frontend ─────────────────────────────────────
 
 app.use(express.static(path.join(__dirname, '..', 'public')));

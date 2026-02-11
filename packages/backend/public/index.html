@@ -5788,9 +5788,6 @@ a { color: var(--purple-300); text-decoration: none; }
       <div class="fs-mode-selector">
         <button class="fs-mode-btn active" data-mode="synced" onclick="setLyricsMode('synced')" title="Synced">●</button>
         <button class="fs-mode-btn" data-mode="raw" onclick="setLyricsMode('raw')" title="Raw">☰</button>
-        <button class="fs-mode-btn" data-mode="karaoke" onclick="setLyricsMode('karaoke')" title="Karaoke">🎤</button>
-        <button class="fs-mode-btn" data-mode="compact" onclick="setLyricsMode('compact')" title="Compact">▣</button>
-        <button class="fs-mode-btn" data-mode="art" onclick="setLyricsMode('art')" title="Art Focus">🖼</button>
       </div>
       
       <button class="fs-tool-btn" onclick="toggleInfoPanel()" title="Song Info">
@@ -7323,7 +7320,7 @@ let lyricsSettings = {
   fontSize: 2.2,
   theme: 'dark',
   align: 'center',
-  spacing: 4,
+  spacing: 12,
   highContrast: false,
   largeText: false
 };
@@ -7340,23 +7337,9 @@ function setLyricsMode(mode) {
   
   // Apply mode classes
   fsLyrics.classList.remove('raw-mode', 'compact', 'art-focus', 'karaoke-mode');
-  
-  switch(mode) {
-    case 'raw':
-      fsLyrics.classList.add('raw-mode');
-      break;
-    case 'compact':
-      fsLyrics.classList.add('compact');
-      break;
-    case 'art':
-      fsLyrics.classList.add('art-focus');
-      document.getElementById('fsArtLarge').style.display = 'block';
-      break;
-    case 'karaoke':
-      fsLyrics.classList.add('karaoke-mode');
-      break;
-    default:
-      document.getElementById('fsArtLarge').style.display = 'none';
+
+  if (mode === 'raw') {
+    fsLyrics.classList.add('raw-mode');
   }
   
   // Reload lyrics with new mode
@@ -8310,10 +8293,10 @@ if ('mediaSession' in navigator) {
 
 // ─── Utilities ──────────────────────────────────────────
 
-// Cover art: try embedded art from audio file first, fall back to API image_url
+// Cover art: prefer imageUrl (fast), fall back to embedded cover-art endpoint (slow)
 function artSrc(s) {
+  if (s.imageUrl) return s.imageUrl;
   if (s.hasFilePath) return `/api/songs/${s.id}/cover-art`;
-  if (s.imageUrl) return esc(s.imageUrl);
   return '';
 }
 function artTag(s, fallback) {
@@ -9444,15 +9427,19 @@ async function loadEras() {
   try {
     const data = await api('/songs/eras');
     const select = document.getElementById('eraFilter');
-    if (select && data.eras) {
+    if (select && data.eras && data.eras.length) {
+      // Clear existing options except "All Eras"
+      while (select.options.length > 1) select.remove(1);
       data.eras.forEach(e => {
         const opt = document.createElement('option');
         opt.value = e.name;
-        opt.textContent = e.name + ' (' + e.songCount + ')';
+        opt.textContent = e.name + (e.songCount ? ' (' + e.songCount + ')' : '');
         select.appendChild(opt);
       });
     }
-  } catch {}
+  } catch (err) {
+    console.warn('Failed to load eras:', err);
+  }
 }
 
 // ─── V2: Volume Improvements ────────────────────────────
@@ -10523,11 +10510,10 @@ function isPlaylistArchived(playlistId) {
 
 // 23. PLAYLIST TEMPLATES
 const PLAYLIST_TEMPLATES = [
-  { id: 'new_releases', name: '🆕 New Release Radar', desc: 'Recently added songs', filter: s => s.createdAt && (Date.now() - new Date(s.createdAt)) < 7 * 24 * 60 * 60 * 1000 },
-  { id: 'deep_cuts', name: '💎 Deep Cuts', desc: 'Less played hidden gems', filter: s => (s.playCount || 0) < 10 },
+  { id: 'deep_cuts', name: '💎 Deep Cuts', desc: 'Less played hidden gems', filter: s => (s.playCount || 0) < 10 && s.hasFilePath },
   { id: 'liked_songs', name: '❤️ Liked Songs Mix', desc: 'Your liked songs', filter: s => userLikes[s.id] },
-  { id: 'lyrics_ready', name: '🎤 Lyrics Ready', desc: 'Songs with synced lyrics', filter: s => s.canonicalLyrics },
-  { id: 'most_played', name: '🔥 Most Played', desc: 'Your top played songs', filter: s => (s.playCount || 0) > 50 },
+  { id: 'lyrics_ready', name: '🎤 Lyrics Ready', desc: 'Songs with synced lyrics', filter: s => s.hasLyrics },
+  { id: 'most_played', name: '🔥 Most Played', desc: 'Your top played songs', filter: s => (s.playCount || 0) > 5 },
   { id: 'unreleased', name: '🔒 Unreleased Only', desc: 'Leaked tracks', filter: s => s.category === 'unreleased' }
 ];
 
@@ -10536,9 +10522,14 @@ async function createFromTemplate(templateId) {
   if (!template) return;
   
   try {
-    // Get all songs
-    const data = await api('/songs?page=1&pageSize=1000');
-    const matching = (data.songs || []).filter(template.filter).slice(0, 50);
+    // Get songs (multiple pages to get enough matches)
+    let allSongs = [];
+    for (let p = 1; p <= 5; p++) {
+      const data = await api('/songs?page=' + p + '&pageSize=100');
+      allSongs = allSongs.concat(data.songs || []);
+      if (!data.pagination || p >= data.pagination.totalPages) break;
+    }
+    const matching = allSongs.filter(template.filter).slice(0, 50);
     
     if (matching.length === 0) {
       toast('No songs match this template', 'error');

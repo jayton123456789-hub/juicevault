@@ -4,6 +4,7 @@ import { v4 as uuid } from 'uuid';
 import prisma from '../config/database';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { triggerAutoLyricsSync, getAutoLyricsStatus, getAutoLyricsLogs, AutoLyricsMode } from '../jobs/auto-lyrics-sync';
+import { triggerRescan, getRescanProgress } from '../jobs/rescan-catalog';
 
 const router = Router();
 
@@ -577,6 +578,192 @@ router.get('/lyrics/auto-sync/logs', async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error('Auto-sync logs error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /api/admin/rescan-catalog ──────────────────────
+// Trigger a full catalog rescan (paginated fetch from API, upsert metadata, download covers)
+
+router.post('/rescan-catalog', async (req: Request, res: Response) => {
+  try {
+    const downloadCovers = req.body.downloadCovers !== false; // default true
+    const triggered = triggerRescan(prisma, downloadCovers);
+
+    if (triggered) {
+      res.json({
+        success: true,
+        message: `Catalog rescan started${downloadCovers ? ' with cover art download' : ''}`,
+      });
+    } else {
+      const status = getRescanProgress();
+      res.status(409).json({
+        success: false,
+        message: 'Rescan is already running',
+        status,
+      });
+    }
+  } catch (err) {
+    console.error('Rescan trigger error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/admin/rescan-catalog/status ────────────────
+// Poll for rescan progress
+
+router.get('/rescan-catalog/status', async (_req: Request, res: Response) => {
+  try {
+    const progress = getRescanProgress();
+    res.json(progress);
+  } catch (err) {
+    console.error('Rescan status error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/admin/flagged-songs ────────────────────────
+// Dashboard: list all broken track reports with full detail
+
+router.get('/flagged-songs', async (req: Request, res: Response) => {
+  try {
+    const statusFilter = (req.query.status as string) || 'open';
+    const where: any = {};
+    if (statusFilter !== 'all') where.status = statusFilter;
+
+    const reports = await prisma.brokenTrackReport.findMany({
+      where,
+      include: {
+        song: {
+          select: {
+            id: true,
+            name: true,
+            externalId: true,
+            category: true,
+            filePath: true,
+            imageUrl: true,
+            isAvailable: true,
+            playCount: true,
+          },
+        },
+        reporter: { select: { displayName: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    const counts = await prisma.brokenTrackReport.groupBy({
+      by: ['status'],
+      _count: { status: true },
+    });
+
+    const statusCounts: Record<string, number> = {};
+    for (const c of counts) {
+      statusCounts[c.status] = c._count.status;
+    }
+
+    res.json({
+      reports: reports.map(r => ({
+        id: r.id,
+        song: r.song,
+        reporter: r.reporter,
+        reason: r.reason,
+        status: r.status,
+        apiUrl: r.apiUrl,
+        proxyError: r.proxyError,
+        errorLog: r.errorLog,
+        createdAt: r.createdAt,
+        resolvedAt: r.resolvedAt,
+      })),
+      statusCounts,
+    });
+  } catch (err) {
+    console.error('Flagged songs error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── PUT /api/admin/flagged-songs/:id ────────────────────
+// Update status: resolve, dismiss, or retry
+
+router.put('/flagged-songs/:id', async (req: Request, res: Response) => {
+  try {
+    const { status, action } = req.body;
+
+    // If action is 'retry', re-check if the song stream works
+    if (action === 'retry') {
+      const report = await prisma.brokenTrackReport.findUnique({
+        where: { id: req.params.id },
+        include: { song: { select: { id: true, filePath: true } } },
+      });
+      if (!report) {
+        res.status(404).json({ error: 'Report not found' });
+        return;
+      }
+
+      if (report.song.filePath) {
+        try {
+          const { getJuiceApi } = await import('../services/juice-api');
+          const api = getJuiceApi();
+          const response = await api.fetchAudioStream(report.song.filePath);
+
+          // If it works, mark resolved and re-enable
+          await prisma.brokenTrackReport.update({
+            where: { id: req.params.id },
+            data: {
+              status: 'resolved',
+              resolvedAt: new Date(),
+              resolvedBy: req.user!.userId,
+            },
+          });
+          await prisma.song.update({
+            where: { id: report.song.id },
+            data: { isAvailable: true, lastHealthCheck: new Date() },
+          });
+          res.json({ success: true, status: 'resolved', message: 'Stream works — song re-enabled' });
+          return;
+        } catch (err: any) {
+          res.json({
+            success: false,
+            status: 'open',
+            message: `Stream still broken: ${err.message}`,
+          });
+          return;
+        }
+      }
+    }
+
+    if (!['resolved', 'dismissed'].includes(status)) {
+      res.status(400).json({ error: 'Status must be "resolved" or "dismissed"' });
+      return;
+    }
+
+    const report = await prisma.brokenTrackReport.update({
+      where: { id: req.params.id },
+      data: {
+        status,
+        resolvedAt: new Date(),
+        resolvedBy: req.user!.userId,
+      },
+    });
+
+    // If dismissing, optionally disable the song
+    if (req.body.disableSong) {
+      const full = await prisma.brokenTrackReport.findUnique({
+        where: { id: req.params.id },
+        select: { songId: true },
+      });
+      if (full) {
+        await prisma.song.update({
+          where: { id: full.songId },
+          data: { isAvailable: false },
+        });
+      }
+    }
+
+    res.json({ report: { id: report.id, status: report.status } });
+  } catch (err) {
+    console.error('Update flagged song error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

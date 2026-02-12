@@ -125,6 +125,7 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
       isSystem: playlist.isSystem,
       isOwner: playlist.userId === req.user!.userId,
       createdBy: playlist.user.displayName,
+      previewImages: playlist.songs.slice(0, 4).map(ps => ps.song.localCoverPath || ps.song.imageUrl).filter(Boolean),
       songs: playlist.songs.map(ps => ({
         playlistSongId: ps.id,
         position: ps.position,

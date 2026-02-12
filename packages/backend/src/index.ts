@@ -110,12 +110,22 @@ app.get('/api/cover-gallery', async (_req, res) => {
         ],
       },
       select: { localCoverPath: true, imageUrl: true },
-      take: 200,
+      take: 500,
     });
 
-    // Shuffle and pick up to 56 (7 rows x 8 covers)
-    const shuffled = songs.sort(() => Math.random() - 0.5).slice(0, 56);
-    const urls = shuffled.map(s => s.localCoverPath || s.imageUrl).filter(Boolean);
+    // De-duplicate URLs, shuffle, take 84 unique (7 rows x 12 covers)
+    const urlSet = new Set<string>();
+    for (const s of songs) {
+      const url = s.localCoverPath || s.imageUrl;
+      if (url) urlSet.add(url);
+    }
+    const allUrls = Array.from(urlSet);
+    // Fisher-Yates shuffle
+    for (let i = allUrls.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allUrls[i], allUrls[j]] = [allUrls[j], allUrls[i]];
+    }
+    const urls = allUrls.slice(0, 84);
 
     res.setHeader('Cache-Control', 'public, max-age=300'); // 5 min cache
     res.json({ covers: urls });

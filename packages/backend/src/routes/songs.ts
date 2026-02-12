@@ -387,6 +387,28 @@ router.get(
         const value = audioResponse.headers.get(header);
         if (value) res.setHeader(header, value);
       }
+
+      // Ensure browser gets a playable content-type — some upstream responses
+      // return generic types (application/octet-stream) that the <audio> element rejects
+      // with "no supported source was found"
+      const ct = (audioResponse.headers.get('content-type') || '').toLowerCase();
+      if (!ct || ct === 'application/octet-stream' || ct === 'binary/octet-stream') {
+        // Infer from file extension
+        const ext = (song.filePath || '').split('.').pop()?.toLowerCase();
+        const mimeMap: Record<string, string> = {
+          mp3: 'audio/mpeg',
+          m4a: 'audio/mp4',
+          aac: 'audio/aac',
+          ogg: 'audio/ogg',
+          wav: 'audio/wav',
+          flac: 'audio/flac',
+          opus: 'audio/opus',
+          wma: 'audio/x-ms-wma',
+          webm: 'audio/webm',
+        };
+        res.setHeader('Content-Type', mimeMap[ext || ''] || 'audio/mpeg');
+      }
+
       res.setHeader('Cache-Control', 'no-store, no-cache');
       res.setHeader('X-Content-Type-Options', 'nosniff');
 
